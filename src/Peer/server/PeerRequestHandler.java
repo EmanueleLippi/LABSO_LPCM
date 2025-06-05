@@ -1,8 +1,9 @@
 package Peer.server;
 
+import Common.Protocol;
+import Peer.utils.FileManager;
 import java.io.*;
 import java.net.Socket;
-import Peer.utils.FileManager;
 
 public class PeerRequestHandler implements Runnable {
 
@@ -16,28 +17,44 @@ public class PeerRequestHandler implements Runnable {
     public void run() {
         try (
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+            OutputStream out = clientSocket.getOutputStream();
         ) {
             String request = in.readLine();
             System.out.println("[REQUEST HANDLER] Ricevuta richiesta: " + request);
 
-            if (request != null && request.startsWith("DOWNLOAD_REQUEST")) {
+            if (request != null && request.startsWith(Protocol.DOWNLOAD_REQUEST)) {
                 String[] parts = request.split(" ");
                 if (parts.length == 2) {
                     String fileName = parts[1];
-                    if (fileManager.hasFile(fileName)) {
-                        String content = fileManager.readFile(fileName);
-                        out.println("DOWNLOAD_DATA " + fileName);
-                        out.println(content);
+                    if (FileManager.hasFile(fileName)) {
+                        byte[] content = FileManager.readFile(fileName);
+                        
+                        // Invia intestazione
+                        String header = Protocol.DOWNLOAD_DATA + " " + fileName + "\n";
+                        out.write(header.getBytes());
+                        
+                        // Invia contenuto
+                        out.write(content);
+                        out.flush();
+                        
+                        System.out.println("[REQUEST HANDLER] File '" + fileName + "' inviato con successo.");
                     } else {
-                        out.println("DOWNLOAD_DENIED " + fileName);
+                        String response = Protocol.DOWNLOAD_DENIED + " " + fileName + "\n";
+                        out.write(response.getBytes());
+                        out.flush();
+                        System.out.println("[REQUEST HANDLER] File '" + fileName + "' non trovato.");
                     }
                 } else {
-                    out.println(Protocol.DOWNLOAD_DENIED);
-                    System.out.println("[REQUEST HANDLER] File '" + fileName + "' non trovato");
+                    String response = Protocol.DOWNLOAD_DENIED + " INVALID_FORMAT\n";
+                    out.write(response.getBytes());
+                    out.flush();
+                    System.out.println("[REQUEST HANDLER] Formato richiesta non valido.");
                 }
             } else {
-                out.println("ERROR Unsupported or malformed request");
+                String response = "ERROR Unsupported or malformed request\n";
+                out.write(response.getBytes());
+                out.flush();
+                System.out.println("[REQUEST HANDLER] Comando sconosciuto.");
             }
 
         } catch (IOException e) {
