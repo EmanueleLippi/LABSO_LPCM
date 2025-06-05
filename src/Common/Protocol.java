@@ -1,3 +1,4 @@
+package Common;
 /*
  * Classe Protocol per standardizzare i messaggi tra Peer e Master.
  * Contiene le costanti per i comandi utilizzati nella comunicazione.
