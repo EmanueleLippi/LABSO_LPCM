@@ -12,7 +12,7 @@ public class Protocol {
     public static final String REGISTER = "REGISTER"; // Peer si registra al Master
     public static final String UPDATE = "UPDATE"; // Aggiornamento risorse disponibili
     public static final String LIST_DATA_REMOTE = "LIST_DATA_REMOTE"; // Richiesta lista risorse remote
-    public static final String GET_PEEERS_FOR_RESOURCE = "GET_PEEERS_FOR_RESOURCE"; // Richiesta lista peer per una risorsa specifica
+    public static final String GET_PEERS_FOR_RESOURCE = "GET_PEERS_FOR_RESOURCE"; // Richiesta lista peer per una risorsa specifica
     public static final String DOWNLOAD_FAIL = "DOWNLOAD_FAIL"; // Download fallito notificato
     public static final String DISCONNECTED = "DISCONNECTED"; // Peer si disconnette dal Master
 
