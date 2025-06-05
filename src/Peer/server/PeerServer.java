@@ -24,6 +24,7 @@ public class PeerServer implements Runnable {
 
     public PeerServer(int port) {
         this.port = port;
+        this.running = true; // Imposta il server come in esecuzione all'inizio
     }
 
     // TODO: Valutare se tenerlo
