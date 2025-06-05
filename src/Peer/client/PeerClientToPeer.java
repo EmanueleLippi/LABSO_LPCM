@@ -1,12 +1,12 @@
 package Peer.client;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.PrintWriter;
-import java.net.Socket;
 import Common.Protocol;
 import Peer.utils.Logger;
+import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 
 // Questa classe è un client che si connette ad altri peer per scaricare risorse
 // Implementa i metodi per connettersi a un peer, inviare richieste di download e ricevere file
@@ -20,8 +20,8 @@ public class PeerClientToPeer {
             DataInputStream datain = new DataInputStream(socket.getInputStream())) {
 
             // 1. Invia la richiesta di download
-            out.println(Protocol.DOWNLOAD_REQUEST);
-            out.println(fileName);
+            out.println(Protocol.DOWNLOAD_REQUEST + " " + fileName);
+
 
             // 2. Attende risposta
             String response = in.readLine();

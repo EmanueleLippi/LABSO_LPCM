@@ -3,6 +3,8 @@ package Peer.server;
 import java.io.*;
 import java.net.Socket;
 import Peer.utils.FileManager;
+import Common.Protocol;
+
 
 public class PeerRequestHandler implements Runnable {
 
@@ -29,10 +31,10 @@ public class PeerRequestHandler implements Runnable {
                     String fileName = parts[1];
                     if (fileManager.hasFile(fileName)) {
                         String content = fileManager.readFile(fileName);
-                        out.println("DOWNLOAD_DATA " + fileName);
+                        out.println(Protocol.DOWNLOAD_DATA + " " + fileName);
                         out.println(content);
                     } else {
-                        out.println("DOWNLOAD_DENIED " + fileName);
+                        out.println(Protocol.DOWNLOAD_DENIED + " " + fileName);
                     }
                 } else {
                     out.println("ERROR Invalid DOWNLOAD_REQUEST format");

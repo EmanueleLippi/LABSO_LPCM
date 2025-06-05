@@ -37,13 +37,12 @@ public class PeerClientToMaster {
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true); // per inviare messaggi al Master
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // per leggere le risposte dal Master
             // Invia il comando di registrazione al Master
-            out.println(Protocol.REGISTER);
-            // Invia il nome del peer
-            out.println(peerName);
-            // Invia la porta del peer
-            out.println(peerPort);
-            // Invia la lista delle risorse disponibili
-            out.println(String.join(",", resources));
+            String joinedResources = String.join(" ", resources);
+            String cmdRegister = Protocol.REGISTER
+                    + " " + peerName
+                    + " " + resources.size()
+                    + " " + joinedResources;
+            out.println(cmdRegister);
 
             //Legge la risposta dal Master
             String response = in.readLine();
@@ -67,8 +66,7 @@ public class PeerClientToMaster {
             PrintWriter out  = new PrintWriter(socket.getOutputStream(), true); // per inviare messaggi al Master
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // per leggere le risposte dal Master
             // Invia la richiesta per ottenere i peer che hanno la risorsa specificata
-            out.println(Protocol.GET_PEERS_FOR_RESOURCE);
-            out.println(resourceName);
+            out.println(Protocol.GET_PEERS_FOR_RESOURCE + " " + resourceName);
             // Legge la risposta dal Master
             String response = in.readLine();
             // Controlla se la risposta è valida
@@ -103,11 +101,7 @@ public class PeerClientToMaster {
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true); // per inviare messaggi al Master
 
             // Invia il comando di download fallito al Master
-            out.println(Protocol.DOWNLOAD_FAIL);
-            // Invia il nome della risorsa che ha fallito il download
-            out.println(resourceName);
-            // Invia il nome del peer che ha tentato il download
-            out.println(peerName);
+            out.println(Protocol.DOWNLOAD_FAIL + " " + resourceName + " " + peerName);
             // Warn del Logger del Peer
             Logger.warn("Download fallito per la risorsa '" + resourceName + "' dal peer '" + peerName + "'. Notifica inviata al Master.");
         } catch (IOException e) {
@@ -120,9 +114,7 @@ public class PeerClientToMaster {
         try(Socket socket = new Socket(masterAddress, masterPort)){
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true); // per inviare messaggi al Master
             // Invia il comando di disconnessione al Master
-            out.println(Protocol.DISCONNECTED);
-            // Invia il nome del peer che si sta disconnettendo
-            out.println(peerName);
+            out.println(Protocol.DISCONNECTED + " " + peerName);
             Logger.info("Disconnessione del Peer '" + peerName + "' dal Master completata.");
         } catch (IOException e) {
             Logger.error("Errore durante la disconnessione del Peer dal Master: " + e.getMessage());
