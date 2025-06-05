@@ -11,6 +11,7 @@ package Peer.server;
  * Supporta l’avvio e lo stop pulito del server, permettendo di chiudere la porta in modo sicuro.
  */
 
+import Peer.utils.Logger;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -54,7 +55,7 @@ public class PeerServer implements Runnable {
             while (running) {
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    System.out.println("[PEER SERVER] Connessione ricevuta da " + clientSocket.getInetAddress());
+                    Logger.info("[PEER SERVER] Connessione ricevuta da " + clientSocket.getInetAddress());
 
                     // Avvia un nuovo thread per gestire la connessione
                     new Thread(new PeerRequestHandler(clientSocket)).start();
@@ -65,13 +66,13 @@ public class PeerServer implements Runnable {
                 }
             }
         } catch (IOException e) {
-            System.err.println("[PEER SERVER] Errore nella creazione del ServerSocket: " + e.getMessage());
+            Logger.warn("[PEER SERVER] Errore nella creazione del ServerSocket: " + e.getMessage());
             running = false;
         } finally {
             closeServerSocket();
         }
 
-        System.out.println("[PEER SERVER] Server terminato.");
+       Logger.warn("[PEER SERVER] Server terminato.");
     }
 
     /*
@@ -80,7 +81,7 @@ public class PeerServer implements Runnable {
     public synchronized void stop() {
         running = false;
         closeServerSocket();
-        System.out.println("[PEER SERVER] Stop richiesto");
+        Logger.warn("[PEER SERVER] Stop richiesto");
     }
 
     /*
@@ -98,9 +99,9 @@ public class PeerServer implements Runnable {
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close();
-                System.out.println("[PEER SERVER] ServerSocket chiuso.");
+                Logger.warn("[PEER SERVER] ServerSocket chiuso.");
             } catch (IOException e) {
-                System.err.println("[PEER SERVER] Errore chiusura ServerSocket: " + e.getMessage());
+                Logger.error("[PEER SERVER] Errore chiusura ServerSocket: " + e.getMessage());
             }
         }
     }

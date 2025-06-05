@@ -2,6 +2,7 @@ package Peer.server;
 
 import Common.Protocol;
 import Peer.utils.FileManager;
+import Peer.utils.Logger;
 import java.io.*;
 import java.net.Socket;
 
@@ -20,7 +21,7 @@ public class PeerRequestHandler implements Runnable {
             OutputStream out = clientSocket.getOutputStream();
         ) {
             String request = in.readLine();
-            System.out.println("[REQUEST HANDLER] Ricevuta richiesta: " + request);
+            Logger.info("[REQUEST HANDLER] Ricevuta richiesta: " + request);
 
             if (request != null && request.startsWith(Protocol.DOWNLOAD_REQUEST)) {
                 String[] parts = request.split(" ");
@@ -37,33 +38,33 @@ public class PeerRequestHandler implements Runnable {
                         out.write(content);
                         out.flush();
                         
-                        System.out.println("[REQUEST HANDLER] File '" + fileName + "' inviato con successo.");
+                        Logger.info("[REQUEST HANDLER] File '" + fileName + "' inviato con successo.");
                     } else {
                         String response = Protocol.DOWNLOAD_DENIED + " " + fileName + "\n";
                         out.write(response.getBytes());
                         out.flush();
-                        System.out.println("[REQUEST HANDLER] File '" + fileName + "' non trovato.");
+                        Logger.info("[REQUEST HANDLER] File '" + fileName + "' non trovato.");
                     }
                 } else {
                     String response = Protocol.DOWNLOAD_DENIED + " INVALID_FORMAT\n";
                     out.write(response.getBytes());
                     out.flush();
-                    System.out.println("[REQUEST HANDLER] Formato richiesta non valido.");
+                    Logger.warn("[REQUEST HANDLER] Formato richiesta non valido.");
                 }
             } else {
                 String response = "ERROR Unsupported or malformed request\n";
                 out.write(response.getBytes());
                 out.flush();
-                System.out.println("[REQUEST HANDLER] Comando sconosciuto.");
+                Logger.error("[REQUEST HANDLER] Comando sconosciuto.");
             }
 
         } catch (IOException e) {
-            System.err.println("[REQUEST HANDLER] Errore I/O: " + e.getMessage());
+            Logger.error("[REQUEST HANDLER] Errore I/O: " + e.getMessage());
         } finally {
             try {
                 clientSocket.close();
             } catch (IOException e) {
-                System.err.println("[REQUEST HANDLER] Errore chiusura socket: " + e.getMessage());
+                Logger.error("[REQUEST HANDLER] Errore chiusura socket: " + e.getMessage());
             }
         }
     }
