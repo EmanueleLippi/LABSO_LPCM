@@ -18,8 +18,8 @@ import java.net.SocketTimeoutException;
 
 public class PeerServer implements Runnable {
 
-    private int port;
-    private volatile boolean running = false;
+    private final int port;
+    private boolean running = false;
     private ServerSocket serverSocket;
 
     public PeerServer(int port) {
