@@ -7,6 +7,8 @@
  * - Chiudere automaticamente la connessione al termine
  */
 package Peer.client;
+import Common.Protocol;
+import Peer.utils.Logger;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -14,9 +16,6 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-
-import Common.Protocol;
-import Peer.utils.Logger;
 
 
 public class PeerClientToMaster {
@@ -68,7 +67,7 @@ public class PeerClientToMaster {
             PrintWriter out  = new PrintWriter(socket.getOutputStream(), true); // per inviare messaggi al Master
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // per leggere le risposte dal Master
             // Invia la richiesta per ottenere i peer che hanno la risorsa specificata
-            out.println(Protocol.GET_PEEERS_FOR_RESOURCE);
+            out.println(Protocol.GET_PEERS_FOR_RESOURCE);
             out.println(resourceName);
             // Legge la risposta dal Master
             String response = in.readLine();
