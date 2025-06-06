@@ -43,8 +43,7 @@ class PeerHandler implements Runnable {
                     case Protocol.LIST_DATA_REMOTE      -> handleListData();
                     case Protocol.GET_PEERS_FOR_RESOURCE -> handleGetPeers(tokens);
                     case Protocol.DOWNLOAD_FAIL         -> handleDownloadFail(tokens);
-                    case Protocol.DISCONNECTED          -> {
-                        handleDisconnect(tokens);
+                    case Protocol.DISCONNECTED          -> {handleDisconnect(tokens);
                         return; // chiude il thread
                     }
                     default -> sendResponse("UNKNOWN_COMMAND");
