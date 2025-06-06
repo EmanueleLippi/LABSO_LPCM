@@ -40,6 +40,7 @@ public class PeerClientToMaster {
             String joinedResources = String.join(" ", resources);
             String cmdRegister = Protocol.REGISTER
                     + " " + peerName
+                    + " " + peerPort
                     + " " + resources.size()
                     + " " + joinedResources;
             out.println(cmdRegister);

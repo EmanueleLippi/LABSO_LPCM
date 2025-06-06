@@ -1,11 +1,11 @@
 package Peer.utils;
 
-import java.util.List;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.io.IOException;
+import java.util.List;
 
 public class FileManager {
     private static String sharedFolderPath;
@@ -58,7 +58,7 @@ public class FileManager {
     }
 
     // metodo che salva il contenuto ricevuto in downloads/ come un nuovo file
-    // reare downloads/ se non esiste
+    // creare downloads/ se non esiste
     // Sovrascrive il file se già esiste
     // Gestisce le eccezioni con log o stampa
     public static void saveFile(String filename, byte[] data) throws IOException{
