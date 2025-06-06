@@ -50,9 +50,10 @@ public class PeerRequestHandler implements Runnable {
                         byte[] content = FileManager.readFile(fileName);
                         String header = Protocol.DOWNLOAD_DATA + " " + fileName + "\n";
                         out.write(header.getBytes());
+                        out.write((content.length + "\n").getBytes());
                         out.write(content);
                         out.flush();
-                        Logger.info("[REQUEST HANDLER] File '" + fileName + "' inviato con successo.");
+                        Logger.info("[REQUEST HANDLER] File '" + fileName + "' inviato con "+content.length+" byte.");
                     } else {
                         String response = Protocol.DOWNLOAD_DENIED + " " + fileName + "\n";
                         out.write(response.getBytes());

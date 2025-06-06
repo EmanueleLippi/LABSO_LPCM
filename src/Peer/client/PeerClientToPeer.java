@@ -25,8 +25,10 @@ public class PeerClientToPeer {
 
             // 2. Attende risposta
             String response = in.readLine();
-            if (Protocol.DOWNLOAD_DATA.equals(response)) {
-                Logger.info("Download del file '" + fileName + "' avviato da " + peerAddress + ":" + peerPort);
+            if (response != null && response.startsWith(Protocol.DOWNLOAD_DATA)) {
+                String[] headerParts = response.split(" ",2);
+                String headerFile = headerParts.length > 1 ? headerParts[1] : fileName;
+                Logger.info("Download del file '" + headerFile + "' avviato da " + peerAddress + ":" + peerPort);
 
                 // 3. Legge la dimensione del file (riga successiva)
                 String sizeStr = in.readLine();
@@ -38,8 +40,10 @@ public class PeerClientToPeer {
                 Logger.info("Download completato. Ricevuti " + fileSize + " byte.");
                 return fileData;
 
-            } else if (Protocol.DOWNLOAD_DENIED.equals(response)) {
-                Logger.warn("Download rifiutato dal peer " + peerAddress + ":" + peerPort);
+            } else if (response != null && response.startsWith(Protocol.DOWNLOAD_DENIED)) {
+                String[] headerParts = response.split(" ",2);
+                String deniedFile = headerParts.length > 1 ? headerParts[1] : fileName;
+                Logger.warn("Download del file '" + deniedFile + "' rifiutato da " + peerAddress + ":" + peerPort);
                 return null;
 
             } else {
