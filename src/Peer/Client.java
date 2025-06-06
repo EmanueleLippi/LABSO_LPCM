@@ -70,46 +70,89 @@ public class Client {
         PeerClientToMaster masterClient = new PeerClientToMaster(masterIP, masterPort);
         masterClient.register(peerName, myPort, localFiles);
 
-        // 5. Interazione
+        // 5. Interazione con comandi
         Scanner scanner = new Scanner(System.in);
         PeerClientToPeer downloader = new PeerClientToPeer();
 
         while (true) {
-            System.out.print("> Digita nome file da scaricare (o 'exit'): ");
-            String input = scanner.nextLine();
+            System.out.print("> ");
+            String line = scanner.nextLine().trim();
+            String[] parts = line.split("\\s+", 3);
+            if (parts.length == 0 || parts[0].isEmpty()) continue;
 
-            if ("exit".equalsIgnoreCase(input)) {
-                masterClient.disconnect(peerName);
-                peerServer.stop();
-
-                // Elimina file .in-use al termine
-                new File(myRepo, ".in-use").delete();
-
-                Logger.warn("Peer disconnesso e server terminato.");
-                break;
-            }
-
-            List<String> peersWithFile = masterClient.getPeersForFile(input);
-            if (peersWithFile.isEmpty()) continue;
-
-            String peerInfo = peersWithFile.get(0);
-            String[] tokens = peerInfo.split(" ");
-            String ip = tokens[1];
-            int port = Integer.parseInt(tokens[2]);
-
-            byte[] data = downloader.requestFile(ip, port, input);
-            if (data != null) {
-                try {
-                    FileManager.saveFile(input, data);
-                    Logger.info("File '" + input + "' salvato correttamente in 'download/'.");
-                } catch (Exception e) {
-                    Logger.error("Errore durante il salvataggio del file: " + e.getMessage());
+            switch (parts[0]) {
+                case "listdata" -> {
+                    if (parts.length == 2 && parts[1].equals("local")) {
+                        localFiles = FileManager.getLocalFiles();
+                        System.out.println("Local: " + localFiles);
+                    } else if (parts.length == 2 && parts[1].equals("remote")) {
+                        java.util.Map<String, java.util.List<String>> remote = masterClient.listRemoteResources();
+                        remote.forEach((r,p) -> System.out.println(r + " -> " + p));
+                    } else {
+                        System.out.println("Uso: listdata local|remote");
+                    }
                 }
-            } else {
-                masterClient.notifyDownloadFail(input, tokens[0]);
+                case "add" -> {
+                    if (parts.length >= 3) {
+                        String name = parts[1];
+                        String content = parts[2];
+                        try {
+                            FileManager.createLocalFile(name, content);
+                            localFiles = FileManager.getLocalFiles();
+                            masterClient.update(peerName, myPort, localFiles);
+                            System.out.println("File aggiunto: " + name);
+                        } catch (IOException e) {
+                            Logger.error("Impossibile creare il file: " + e.getMessage());
+                        }
+                    } else {
+                        System.out.println("Uso: add <nome> <contenuto>");
+                    }
+                }
+                case "download" -> {
+                    if (parts.length == 2) {
+                        String resource = parts[1];
+                        List<String> peers = masterClient.getPeersForFile(resource);
+                        if (peers.isEmpty()) {
+                            Logger.warn("Risorsa non trovata: " + resource);
+                            break;
+                        }
+                        boolean success = false;
+                        for (String info : peers) {
+                            String[] t = info.split(" ");
+                            String pid = t[0];
+                            String ip = t[1];
+                            int port = Integer.parseInt(t[2]);
+                            byte[] data = downloader.requestFile(ip, port, resource);
+                            if (data != null) {
+                                try {
+                                    FileManager.saveFile(resource, data);
+                                    Logger.info("File '" + resource + "' salvato in download/.");
+                                    success = true;
+                                } catch (Exception e) {
+                                    Logger.error("Errore salvataggio: " + e.getMessage());
+                                }
+                                break;
+                            } else {
+                                masterClient.notifyDownloadFail(resource, pid);
+                            }
+                        }
+                        if (!success) {
+                            Logger.error("Download fallito per la risorsa " + resource);
+                        }
+                    } else {
+                        System.out.println("Uso: download <risorsa>");
+                    }
+                }
+             case "quit" -> {
+                    masterClient.disconnect(peerName);
+                    peerServer.stop();
+                    new File(myRepo, ".in-use").delete();
+                    Logger.warn("Peer disconnesso e server terminato.");
+                    scanner.close();
+                    return;
+                }
+                default -> System.out.println("Comando sconosciuto.");
+                }
             }
         }
-
-        scanner.close();
-    }
 }

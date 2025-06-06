@@ -57,6 +57,17 @@ public class FileManager {
         return file.exists() && file.isFile();
     }
 
+    // Crea un nuovo file nella cartella condivisa con il contenuto fornito
+    // Crea la cartella se non esiste
+    public static void createLocalFile(String filename, String content) throws IOException {
+        File folder = new File(sharedFolderPath);
+        if (!folder.exists()) {
+            folder.mkdirs();
+        }
+        Path filePath = Path.of(sharedFolderPath, filename);
+        Files.writeString(filePath, content);
+    }
+
     // metodo che salva il contenuto ricevuto in downloads/ come un nuovo file
     // creare downloads/ se non esiste
     // Sovrascrive il file se già esiste
