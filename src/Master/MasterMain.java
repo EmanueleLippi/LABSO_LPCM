@@ -2,6 +2,7 @@ package Master;
 
 /**
  * Classe di entry-point che avvia il Master.
+ * Riceve in input la porta di ascolto, crea un’istanza di MasterServer e invoca start()
  */
 public class MasterMain {
 

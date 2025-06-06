@@ -8,6 +8,9 @@ import java.util.concurrent.Executors;
 
 /**
  * Gestisce il ServerSocket e il thread-pool per le connessioni dei peer.
+ * Apre un ServerSocket su una porta specificata, accetta connessioni in un loop e utilizza un ExecutorService
+ * per delegare ogni Socket in entrata a un nuovo PeerHandler.
+ * Avvia anche il thread di CliConsole.
  */
 class MasterServer {
 

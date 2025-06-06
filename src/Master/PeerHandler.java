@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Gestisce la connessione con un singolo peer.
+ * Gestisce la connessione con un singolo peer tramite socket.
  * Interpreta i comandi in arrivo e risponde secondo il protocollo definito in Common.Protocol.java
  */
 class PeerHandler implements Runnable {
