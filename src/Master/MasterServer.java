@@ -8,9 +8,8 @@ import java.util.concurrent.Executors;
 
 /**
  * Gestisce il ServerSocket e il thread-pool per le connessioni dei peer.
- * Apre un ServerSocket su una porta specificata, accetta connessioni in un loop e utilizza un ExecutorService
- * per delegare ogni Socket in entrata a un nuovo PeerHandler.
- * Avvia anche il thread di CliConsole.
+ * Metodi start() e shutdown() dichiarati synchronized 
+ * per evitare race conditions nella fase di avvio/arresto del server.
  */
 class MasterServer {
 
@@ -25,23 +24,23 @@ class MasterServer {
     }
 
     /**
-     * Avvia il server: apre il ServerSocket e inizia ad accettare connessioni.
+     * Avvia il server in modo sincronizzato: apre il ServerSocket e accetta connessioni.
      */
-    public void start() {
+    public synchronized void start() {
+        if (running) return; // evita doppio avvio
         try {
             serverSocket = new ServerSocket(port);
             running = true;
             System.out.println("Master in ascolto sulla porta " + port);
 
-            // Avvio thread CLI (non blocca)
+            // Avvio del thread di console (daemon, non blocca l'accept)
             Thread cliThread = new Thread(new CliConsole(this));
             cliThread.setDaemon(true);
             cliThread.start();
 
-            // Ciclo di accept per peer
+            // Ciclo di accept
             while (running) {
                 Socket clientSocket = serverSocket.accept();
-                // Ogni connessione è gestita da un PeerHandler nel pool
                 pool.execute(new PeerHandler(clientSocket, state));
             }
         } catch (IOException e) {
@@ -54,9 +53,10 @@ class MasterServer {
     }
 
     /**
-     * Arresta il server in modo ordinato: chiude socket, pool e risorse.
+     * Arresta il server in modo ordinato: chiude socket e thread pool.
      */
-    public void shutdown() {
+    public synchronized void shutdown() {
+        if (!running) return;
         running = false;
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
@@ -64,7 +64,6 @@ class MasterServer {
             }
         } catch (IOException ignored) { }
 
-        // Chiude il pool e aspetta terminazione
         pool.shutdown();
         try {
             if (!pool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
@@ -78,7 +77,7 @@ class MasterServer {
         System.out.println("Master arrestato.");
     }
 
-    /** ritorna lo Stato interno (per accesso da CLI) */
+    /** @return Stato interno per la CLI */
     public MasterState getState() {
         return state;
     }

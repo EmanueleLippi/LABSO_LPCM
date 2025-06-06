@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * avvia un thread separato che legge comandi dalla console (standard input) 
- * e permette al Master di gestire le richieste dell’operatore. (listadata, inspectNodes, log, quit)
+ * Thread che gestisce la console interattiva dell'operatore Master.
+ * I comandi disponibili non bloccano il servizio di rete.
  */
 class CliConsole implements Runnable {
 
@@ -36,12 +36,11 @@ class CliConsole implements Runnable {
                 }
             }
         } catch (IOException e) {
-            System.err.println("Errore in console: " + e.getMessage());
+            System.err.println("Errore console: " + e.getMessage());
         }
     }
 
     private void handleListData() {
-        // Stampa tutte le risorse e i peer che le possiedono
         MasterState state = server.getState();
         Map<String, Set<String>> all = state.listAllResources();
         System.out.println("Risorse disponibili in rete:");

@@ -7,128 +7,135 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * contiene tutte le strutture e i metodi necessari per tenere traccia dei peer registrati e delle risorse che ciascuno di essi possiede.
- * garantisce che tutte le operazioni di inserimento, rimozione e lookup avvengano in modo thread-safe.
+ * Contiene lo stato condiviso del Master (mappa peer e indice risorse) in modo thread-safe.
+ * Usa un semaforo per serializzare tutte le operazioni di scrittura.
  */
 class MasterState {
+    // Semaforo binario, fairness=true
+    private final Semaphore semaphore = new Semaphore(1, true);
+
     // Mappa peerId -> PeerInfo
     private final Map<String, PeerInfo> peers = new ConcurrentHashMap<>();
     // Mappa nomeRisorsa -> insieme di peerId che possiedono quella risorsa
     private final Map<String, Set<String>> resourceToPeers = new ConcurrentHashMap<>();
-    // Lock lettura/scrittura per proteggere resourceToPeers in mutua esclusione
+    // Lock lettura/scrittura per proteggere resourceToPeers
     private final ReadWriteLock tableLock = new ReentrantReadWriteLock();
     // Coda append-only per log dei download
     private final LinkedBlockingQueue<DownloadLogEntry> downloadLog = new LinkedBlockingQueue<>();
 
-    // Mutex per serializzare l'assegnazione di token in caso di DOWNLOAD_FAIL
-    private final Object downloadMutex = new Object();
-
     /**
      * Registra un nuovo peer o aggiorna un peer esistente.
-     * Aggiunge anche le risorse nella tabella risorse.
-     *
-     * peerId   ID del peer che si registra
-     * address  Indirizzo IP del peer
-     * port     Porta di ascolto del peer
-     * resources Insieme di risorse possedute dal peer
+     * Aggiunge le risorse nella mappa resourceToPeers.
      */
     public void registerPeer(String peerId, InetAddress address, int port, Set<String> resources) {
         Objects.requireNonNull(peerId);
         Objects.requireNonNull(address);
         Objects.requireNonNull(resources);
 
-        // Crea un PeerInfo con timestamp corrente
-        PeerInfo info = new PeerInfo(peerId, address, port, resources, Instant.now());
-        peers.put(peerId, info);
-
-        // Aggiunge le risorse nella mappa resourceToPeers
-        tableLock.writeLock().lock();
         try {
-            for (String r : resources) {
-                resourceToPeers.computeIfAbsent(r, k -> ConcurrentHashMap.newKeySet()).add(peerId);
+            semaphore.acquire(); // entra in sezione critica scrittura
+            // Costruisce PeerInfo con timestamp corrente
+            PeerInfo info = new PeerInfo(peerId, address, port, resources, Instant.now());
+            peers.put(peerId, info);
+
+            tableLock.writeLock().lock();
+            try {
+                for (String r : resources) {
+                    resourceToPeers.computeIfAbsent(r, k -> ConcurrentHashMap.newKeySet()).add(peerId);
+                }
+            } finally {
+                tableLock.writeLock().unlock();
             }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
         } finally {
-            tableLock.writeLock().unlock();
+            semaphore.release(); // esce da sezione critica
         }
     }
 
     /**
-     * Aggiorna la lista delle risorse possedute da un peer (modifica completa).
-     * Rimuove le vecchie risorse e inserisce le nuove.
-     *
-     *  peerId       ID del peer da aggiornare
-     *  newResources Nuovo insieme di risorse possedute
+     * Aggiorna la lista delle risorse possedute da un peer.
+     * Rimuove le vecchie risorse ed inserisce le nuove.
      */
     public void updatePeerResources(String peerId, Set<String> newResources) {
         Objects.requireNonNull(peerId);
         Objects.requireNonNull(newResources);
 
-        PeerInfo oldInfo = peers.get(peerId);
-        if (oldInfo == null) {
-            return; // peer non registrato
-        }
-
-        // Nuovo PeerInfo con aggiornamento timestamp e risorse
-        PeerInfo updated = new PeerInfo(peerId, oldInfo.getAddress(), oldInfo.getPort(), newResources, Instant.now());
-        peers.put(peerId, updated);
-
-        // Prima rimuovo le vecchie risorse nella mappa
-        tableLock.writeLock().lock();
         try {
-            // Rimuove peerId da tutte le risorse che non ci sono più
-            for (String rOld : oldInfo.getResources()) {
-                Set<String> set = resourceToPeers.get(rOld);
-                if (set != null) {
-                    set.remove(peerId);
-                    if (set.isEmpty()) {
-                        resourceToPeers.remove(rOld);
+            semaphore.acquire();
+            PeerInfo oldInfo = peers.get(peerId);
+            if (oldInfo == null) return;
+
+            // Costruisce PeerInfo aggiornato
+            PeerInfo updated = new PeerInfo(peerId, oldInfo.getAddress(), oldInfo.getPort(), newResources, Instant.now());
+            peers.put(peerId, updated);
+
+            tableLock.writeLock().lock();
+            try {
+                // Rimuove peerId dalle risorse vecchie
+                for (String rOld : oldInfo.getResources()) {
+                    Set<String> set = resourceToPeers.get(rOld);
+                    if (set != null) {
+                        set.remove(peerId);
+                        if (set.isEmpty()) {
+                            resourceToPeers.remove(rOld);
+                        }
                     }
                 }
+                // Aggiunge peerId alle nuove risorse
+                for (String rNew : newResources) {
+                    resourceToPeers.computeIfAbsent(rNew, k -> ConcurrentHashMap.newKeySet()).add(peerId);
+                }
+            } finally {
+                tableLock.writeLock().unlock();
             }
-            // Aggiunge peerId alle nuove risorse
-            for (String rNew : newResources) {
-                resourceToPeers.computeIfAbsent(rNew, k -> ConcurrentHashMap.newKeySet()).add(peerId);
-            }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
         } finally {
-            tableLock.writeLock().unlock();
+            semaphore.release();
         }
     }
 
     /**
-     * Rimuove un peer (in caso di DISCONNECTED). Rimuove anche tutte le sue risorse dalla tabella.
-     *
-     *  peerId ID del peer che si disconnette
+     * Rimuove un peer (DISCONNECTED) e tutte le sue risorse.
      */
     public void removePeer(String peerId) {
         Objects.requireNonNull(peerId);
 
-        PeerInfo info = peers.remove(peerId);
-        if (info == null) return;
-
-        tableLock.writeLock().lock();
         try {
-            for (String r : info.getResources()) {
-                Set<String> set = resourceToPeers.get(r);
-                if (set != null) {
-                    set.remove(peerId);
-                    if (set.isEmpty()) {
-                        resourceToPeers.remove(r);
+            semaphore.acquire();
+            PeerInfo info = peers.remove(peerId);
+            if (info == null) return;
+
+            tableLock.writeLock().lock();
+            try {
+                for (String r : info.getResources()) {
+                    Set<String> set = resourceToPeers.get(r);
+                    if (set != null) {
+                        set.remove(peerId);
+                        if (set.isEmpty()) {
+                            resourceToPeers.remove(r);
+                        }
                     }
                 }
+            } finally {
+                tableLock.writeLock().unlock();
             }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
         } finally {
-            tableLock.writeLock().unlock();
+            semaphore.release();
         }
     }
 
     /**
-     * Restituisce mappa completa risorsa -> insieme di peer (readonly copy).
-     *
-     *  Copia della mappa risorsa->peers
+     * Restituisce una copia della mappa risorsa -> insieme di peer (readonly).
+     * Lettura non bloccante su semaforo, ma usa read-lock per resourceToPeers.
      */
     public Map<String, Set<String>> listAllResources() {
         tableLock.readLock().lock();
@@ -144,10 +151,7 @@ class MasterState {
     }
 
     /**
-     * Restituisce l'insieme di peer che attualmente dicono di possedere la risorsa richiesta.
-     *
-     *  resource Nome della risorsa
-     *  Insieme di peerId (iterabile) oppure empty set se non esiste
+     * Restituisce l'insieme di peer che possiedono una determinata risorsa.
      */
     public Set<String> getPeersFor(String resource) {
         Objects.requireNonNull(resource);
@@ -155,29 +159,22 @@ class MasterState {
         tableLock.readLock().lock();
         try {
             Set<String> set = resourceToPeers.get(resource);
-            if (set == null) {
-                return Collections.emptySet();
-            }
-            return Set.copyOf(set);
+            return (set == null) ? Collections.emptySet() : Set.copyOf(set);
         } finally {
             tableLock.readLock().unlock();
         }
     }
 
     /**
-     * Gestisce un DOWNLOAD_FAIL segnalato dal peer (tentativo fallito).
-     * Rimuove il peer fallito dalla lista di candidati e restituisce il prossimo peer, se presente.
-     *
-     *  resource   Nome della risorsa
-     *  failedPeer ID del peer che ha fallito nel fornire la risorsa
-     *  ID del prossimo peer candidato oppure null se la lista è vuota
+     * Gestisce un DOWNLOAD_FAIL: rimuove il peer fallito e restituisce il prossimo candidato.
      */
     public String handleDownloadFail(String resource, String failedPeer) {
         Objects.requireNonNull(resource);
         Objects.requireNonNull(failedPeer);
 
-        synchronized (downloadMutex) {
-            // Rimuovo il peer dalla mappa
+        String nextPeer = null;
+        try {
+            semaphore.acquire();
             tableLock.writeLock().lock();
             try {
                 Set<String> set = resourceToPeers.get(resource);
@@ -190,52 +187,45 @@ class MasterState {
             } finally {
                 tableLock.writeLock().unlock();
             }
-
-            // Ora restituisco il prossimo candidato (se esiste)
+            // Cerca il prossimo candidato
             Set<String> remaining = getPeersFor(resource);
             if (!remaining.isEmpty()) {
-                // Prendo arbitrariamente il primo iterato
-                return remaining.iterator().next();
-            } else {
-                return null; // nessun altro peer disponibile
+                nextPeer = remaining.iterator().next();
             }
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } finally {
+            semaphore.release();
         }
+        return nextPeer;
     }
 
     /**
-     * Aggiunge una voce di log per un tentativo di download.
-     *
-     *  entry Voce di log da aggiungere
+     * Aggiunge una voce al download log.
      */
     public void addDownloadLog(DownloadLogEntry entry) {
         Objects.requireNonNull(entry);
+        // Non necessita semaforo, la LinkedBlockingQueue è già thread-safe per l'append
         downloadLog.add(entry);
     }
 
     /**
-     * Restituisce la lista (copia) di tutte le voci di download loggati.
-     *
-     *  Lista ordinata di DownloadLogEntry
+     * Restituisce la lista di tutti i download log.
      */
     public List<DownloadLogEntry> getLogEntries() {
+        // Lettura non bloccante
         return List.copyOf(downloadLog);
     }
 
     /**
-     * Restituisce informazioni dettagliate su un singolo peer (per inspectNodes).
-     *
-     *  peerId ID del peer da ispezionare
-     *  PeerInfo se trovato, altrimenti null
+     * Restituisce le informazioni di un singolo peer (per inspectNodes).
      */
     public PeerInfo inspectPeer(String peerId) {
         return peers.get(peerId);
     }
 
     /**
-     * Restituisce insieme di peer che possiedono la risorsa indicata (per inspectNodes).
-     *
-     *  resource Nome risorsa
-     *  Insieme di peerId o empty set
+     * Restituisce l'insieme di peer che possiedono la risorsa (per inspectNodes).
      */
     public Set<String> inspectPeersByResource(String resource) {
         return getPeersFor(resource);
