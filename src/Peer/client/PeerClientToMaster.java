@@ -16,6 +16,8 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 
 public class PeerClientToMaster {
@@ -60,39 +62,93 @@ public class PeerClientToMaster {
         }
     }
 
-    // TODO: per il master in caso di tutto ok deve rispondere con un messaggio di conferma --> Protocol.PEER_FOR_RESOURCE
-    // Metodo per Ricevere la lista dei peer che hanno una risorsa specifica
+     // Aggiorna le risorse del peer già registrato
+    public void update(String peerName, int peerPort, List<String> resources){
+        try(Socket socket = new Socket(masterAddress, masterPort)){
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            String joinedResources = String.join(" ", resources);
+            String cmdUpdate = Protocol.UPDATE
+                    + " " + peerName
+                    + " " + peerPort
+                    + " " + resources.size()
+                    + " " + joinedResources;
+            out.println(cmdUpdate);
+
+            String response = in.readLine();
+            Logger.info("Risposta dal Master all'update: " + response);
+        } catch(IOException e){
+            Logger.error("Errore durante l'update al Master: " + e.getMessage());
+        }
+    }
+
+    // Metodo per ricevere la lista dei peer che possiedono una risorsa specifica
     public List<String> getPeersForFile(String resourceName){
         try(Socket socket = new Socket(masterAddress, masterPort)){
-            PrintWriter out  = new PrintWriter(socket.getOutputStream(), true); // per inviare messaggi al Master
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // per leggere le risposte dal Master
-            // Invia la richiesta per ottenere i peer che hanno la risorsa specificata
+            PrintWriter out  = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out.println(Protocol.GET_PEERS_FOR_RESOURCE + " " + resourceName);
             // Legge la risposta dal Master
             String response = in.readLine();
-            // Controlla se la risposta è valida
-            if(Protocol.PEER_FOR_RESOURCE.equals(response)){
-                // Legge la lista dei peer cha hanno la risorsa
-                String line;
-                List<String> peers = new ArrayList<>(); // Lista per salvare i peer che hanno la risorsa
-                while((line = in.readLine()) != null && !line.isEmpty()){
-                    peers.add(line); // Aggiunge il peer alla lista
+            if(response != null && response.startsWith(Protocol.PEER_FOR_RESOURCE)){
+                String[] parts = response.split("\\s+");
+                int count = Integer.parseInt(parts[1]);
+                List<String> peers = new ArrayList<>();
+                for(int i=0;i<count;i++){
+                    int idx = 2 + i*3;
+                    if(parts.length >= idx+3){
+                        String pid = parts[idx];
+                        String ip = parts[idx+1];
+                        String port = parts[idx+2];
+                        peers.add(pid + " " + ip + " " + port);
+                    }
                 }
-                Logger.info("Lista dei peer che hanno la risorsa '" + resourceName + "': " + peers);
-                return peers; // Ritorna la lista dei peer che hanno la risorsa
-
-            }else if (Protocol.RESOURCE_NOT_FOUND.equals(response)){
-                Logger.warn("Risorsa '" + resourceName + "' non trovata in nessun peer.");
-                return List.of(); // Ritorna null se la risorsa non è stata trovata
-            } else {
-                Logger.error("Errore nella risposta del Master: " + response);
-                return List.of(); // Ritorna null in caso di errore
-            }
+                return peers; // Ritorna la lista dei peer che possiedono la risorsa
+                
+            } else if(response != null && response.startsWith(Protocol.RESOURCE_NOT_FOUND)){
+                return List.of();
             
+        } else{
+                Logger.error("Risposta non valida dal Master: " + response);
+                return List.of();
+            }
         } catch (IOException e) {
             Logger.error("Errore durante la richiesta dei peer per la risorsa '" + resourceName + "': " + e.getMessage());
             return List.of(); // Ritorna null in caso di errore
         }
+    }
+
+    // Richiede al Master la lista completa delle risorse in rete
+    public Map<String, List<String>> listRemoteResources(){
+        Map<String, List<String>> result = new HashMap<>();
+        try(Socket socket = new Socket(masterAddress, masterPort)){
+            PrintWriter out  = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+            out.println(Protocol.LIST_DATA_REMOTE);
+
+            String response = in.readLine();
+            if(response != null && response.startsWith(Protocol.LIST_DATA_RESPONSE)){
+                String[] tokens = response.split("\\s+");
+                int idx = 1;
+                int total = Integer.parseInt(tokens[idx++]);
+                for(int i=0;i<total;i++){
+                    String res = tokens[idx++];
+                    int count = Integer.parseInt(tokens[idx++]);
+                    List<String> peers = new ArrayList<>();
+                    for(int j=0;j<count;j++){
+                        peers.add(tokens[idx++]);
+                    }
+                    result.put(res, peers);
+                }
+            } else {
+                Logger.error("Risposta non valida dal Master: " + response);
+            }
+        } catch(IOException e){
+            Logger.error("Errore durante la richiesta listdata remote: " + e.getMessage());
+        }
+        return result;
     }
 
 
