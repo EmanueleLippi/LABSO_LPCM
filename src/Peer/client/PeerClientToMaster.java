@@ -71,7 +71,6 @@ public class PeerClientToMaster {
             String joinedResources = String.join(" ", resources);
             String cmdUpdate = Protocol.UPDATE
                     + " " + peerName
-                    + " " + peerPort
                     + " " + resources.size()
                     + " " + joinedResources;
             out.println(cmdUpdate);
