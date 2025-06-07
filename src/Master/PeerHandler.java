@@ -38,19 +38,20 @@ class PeerHandler implements Runnable {
 
                 String cmd = tokens[0];
                 switch (cmd) {
-                    case Protocol.REGISTER -> handleRegister(tokens);
-                    case Protocol.UPDATE   -> handleUpdate(tokens);
-                    case Protocol.LIST_DATA_REMOTE      -> handleListData();
-                    case Protocol.GET_PEERS_FOR_RESOURCE -> handleGetPeers(tokens);
-                    case Protocol.DOWNLOAD_FAIL         -> handleDownloadFail(tokens);
-                    case Protocol.DISCONNECTED          -> {handleDisconnect(tokens);
+                    case Protocol.REGISTER                   -> handleRegister(tokens);
+                    case Protocol.UPDATE                     -> handleUpdate(tokens);
+                    case Protocol.LIST_DATA_REMOTE           -> handleListData();
+                    case Protocol.GET_PEERS_FOR_RESOURCE    -> handleGetPeers(tokens);
+                    case Protocol.DOWNLOAD_FAIL              -> handleDownloadFail(tokens);
+                    case Protocol.DISCONNECTED               -> {
+                        handleDisconnect(tokens);
                         return; // chiude il thread
                     }
-                    default -> sendResponse("UNKNOWN_COMMAND");
+                    default                                 -> sendResponse(Protocol.ERROR + " UNKNOWN_COMMAND");
                 }
             }
         } catch (IOException e) {
-            // Se il peer si disconnette inaspettatamente
+            // Peer disconnesso inaspettatamente
         } finally {
             cleanup();
         }
@@ -61,7 +62,7 @@ class PeerHandler implements Runnable {
      */
     private void handleRegister(String[] tokens) throws IOException {
         if (tokens.length < 4) {
-            sendResponse("ERROR Missing arguments for REGISTER");
+            sendResponse(Protocol.ERROR + " Missing arguments for REGISTER");
             return;
         }
         String peerId = tokens[1];
@@ -69,18 +70,18 @@ class PeerHandler implements Runnable {
         try {
             peerPort = Integer.parseInt(tokens[2]);
         } catch (NumberFormatException ex) {
-            sendResponse("ERROR Bad peerPort for REGISTER");
+            sendResponse(Protocol.ERROR + " Bad peerPort for REGISTER");
             return;
         }
         int n;
         try {
             n = Integer.parseInt(tokens[3]);
         } catch (NumberFormatException ex) {
-            sendResponse("ERROR Bad numRisorse for REGISTER");
+            sendResponse(Protocol.ERROR + " Bad numRisorse for REGISTER");
             return;
         }
         if (tokens.length != 4 + n) {
-            sendResponse("ERROR REGISTER count mismatch");
+            sendResponse(Protocol.ERROR + " REGISTER count mismatch");
             return;
         }
         Set<String> resources = new HashSet<>();
@@ -89,15 +90,15 @@ class PeerHandler implements Runnable {
         }
         InetAddress address = socket.getInetAddress();
         state.registerPeer(peerId, address, peerPort, resources);
-        sendResponse("200 OK");
+        sendResponse(Protocol.REGISTERED + " " + peerId);
     }
 
     /**
-     * FORMATO: UPDATE <peerId> <numRisorse> <ris1> ... <risN>
+     * UPDATE <peerId> <numRisorse> <ris1> ... <risN>
      */
     private void handleUpdate(String[] tokens) throws IOException {
         if (tokens.length < 3) {
-            sendResponse("ERROR Missing arguments for UPDATE");
+            sendResponse(Protocol.ERROR + " Missing arguments for UPDATE");
             return;
         }
         String peerId = tokens[1];
@@ -105,11 +106,11 @@ class PeerHandler implements Runnable {
         try {
             n = Integer.parseInt(tokens[2]);
         } catch (NumberFormatException ex) {
-            sendResponse("ERROR Bad numRisorse for UPDATE");
+            sendResponse(Protocol.ERROR + " Bad numRisorse for UPDATE");
             return;
         }
         if (tokens.length != 3 + n) {
-            sendResponse("ERROR UPDATE count mismatch");
+            sendResponse(Protocol.ERROR + " UPDATE count mismatch");
             return;
         }
         Set<String> newResources = new HashSet<>();
@@ -117,7 +118,7 @@ class PeerHandler implements Runnable {
             newResources.add(tokens[3 + i]);
         }
         state.updatePeerResources(peerId, newResources);
-        sendResponse("200 OK");
+        sendResponse(Protocol.UPDATED + " " + peerId);
     }
 
     private void handleListData() throws IOException {
@@ -137,7 +138,7 @@ class PeerHandler implements Runnable {
 
     private void handleGetPeers(String[] tokens) throws IOException {
         if (tokens.length != 2) {
-            sendResponse("ERROR Missing argument for GET_PEEERS_FOR_RESOURCE");
+            sendResponse(Protocol.ERROR + " Missing argument for GET_PEEERS_FOR_RESOURCE");
             return;
         }
         String risorsa = tokens[1];
@@ -155,11 +156,11 @@ class PeerHandler implements Runnable {
     }
 
     /**
-     * FORMATO: DOWNLOAD_FAIL <risorsa> <peerFallito>
+     * DOWNLOAD_FAIL <risorsa> <peerFallito>
      */
     private void handleDownloadFail(String[] tokens) throws IOException {
         if (tokens.length != 3) {
-            sendResponse("ERROR Missing args for DOWNLOAD_FAIL");
+            sendResponse(Protocol.ERROR + " Missing args for DOWNLOAD_FAIL");
             return;
         }
         String risorsa = tokens[1];
@@ -175,12 +176,12 @@ class PeerHandler implements Runnable {
 
     private void handleDisconnect(String[] tokens) throws IOException {
         if (tokens.length != 2) {
-            sendResponse("ERROR Missing argument for DISCONNECTED");
+            sendResponse(Protocol.ERROR + " Missing argument for DISCONNECTED");
             return;
         }
         String peerId = tokens[1];
         state.removePeer(peerId);
-        sendResponse("200 OK");
+        sendResponse(Protocol.DISCONNECTED_OK + " " + peerId);
     }
 
     private void sendResponse(String msg) throws IOException {

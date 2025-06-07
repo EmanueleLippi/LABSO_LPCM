@@ -17,6 +17,10 @@ public class Protocol {
     public static final String DISCONNECTED = "DISCONNECTED"; // Peer si disconnette dal Master
 
     // Da Master a Peer
+    public static final String ERROR = "ERROR";
+    public static final String REGISTERED = "REGISTERED";
+    public static final String UPDATED = "UPDATED";
+    public static final String DISCONNECTED_OK = "DISCONNECTED_OK";
     public static final String LIST_DATA_RESPONSE = "LIST_DATA_RESPONSE"; // Risposta alla richiesta di lista risorse remote
     public static final String PEER_FOR_RESOURCE = "PEER_FOR_RESOURCE"; // Lista dei peer che hanno una risorsa specifica
     public static final String RESOURCE_NOT_FOUND = "RESOURCE_NOT_FOUND"; // Risorsa non trovata
@@ -25,5 +29,5 @@ public class Protocol {
     // Da Peer a Peer
     public static final String DOWNLOAD_REQUEST = "DOWNLOAD_REQUEST"; // Richiesta di download di una risorsa
     public static final String DOWNLOAD_DATA = "DOWNLOAD_DATA"; // Invio dei dati della risorsa richiesta
-    public static final String DOWNLOAD_DENIED =  "DOWNLOAD_DENIED"; // Download negato, peer non può procedere
+    public static final String DOWNLOAD_DENIED = "DOWNLOAD_DENIED"; // Download negato, peer non può procedere
 }
