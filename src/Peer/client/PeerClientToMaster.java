@@ -83,6 +83,9 @@ public class PeerClientToMaster {
     }
 
     // Metodo per ricevere la lista dei peer che possiedono una risorsa specifica
+    // risposta necessita: PEER_FOR_RESOURCE <count> <pid1> <ip1> <port1> ... <pidN> <ipN> <portN>
+    // dove count è il numero di peer che possiedono la risorsa
+    // e pid, ip, port sono rispettivamente l'ID del peer, l'indirizzo IP e la porta
     public List<String> getPeersForFile(String resourceName){
         try(Socket socket = new Socket(masterAddress, masterPort)){
             PrintWriter out  = new PrintWriter(socket.getOutputStream(), true);
@@ -102,10 +105,16 @@ public class PeerClientToMaster {
                         String port = parts[idx+2];
                         peers.add(pid + " " + ip + " " + port);
                     }
+                    else{
+                        Logger.error("Risposta dal Master non contiene abbastanza informazioni sui peer per la risorsa '" + resourceName + "'. Risposta: " + response);
+                        return List.of(); // Ritorna una lista vuota se la risposta non è valida
+                    }
                 }
+                Logger.info("Trovati " + count + " peer per la risorsa '" + resourceName + "': " + peers);
                 return peers; // Ritorna la lista dei peer che possiedono la risorsa
                 
             } else if(response != null && response.startsWith(Protocol.RESOURCE_NOT_FOUND)){
+                Logger.warn("Risorsa '" + resourceName + "' non trovata nel Master.");
                 return List.of();
             
         } else{
