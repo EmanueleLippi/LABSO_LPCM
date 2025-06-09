@@ -16,7 +16,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Usa un semaforo per serializzare tutte le operazioni di scrittura.
  */
 class MasterState {
-    // Semaforo binario, fairness=true
+    // Semaforo binario, fairness=true --> garantisce l'accesso seriale alle operazioni di scrittura
     private final Semaphore semaphore = new Semaphore(1, true);
 
     // Mappa peerId -> PeerInfo
@@ -38,7 +38,8 @@ class MasterState {
         Objects.requireNonNull(resources);
 
         try {
-            semaphore.acquire(); // entra in sezione critica scrittura
+            // Entrata in sezione critica scrittura --> acquisizione del semaforo
+            semaphore.acquire(); 
             // Costruisce PeerInfo con timestamp corrente
             PeerInfo info = new PeerInfo(peerId, address, port, resources, Instant.now());
             peers.put(peerId, info);
@@ -46,6 +47,7 @@ class MasterState {
             tableLock.writeLock().lock();
             try {
                 for (String r : resources) {
+                    // Aggiunge peerId alla lista dei possessori della risorsa r
                     resourceToPeers.computeIfAbsent(r, k -> ConcurrentHashMap.newKeySet()).add(peerId);
                 }
             } finally {
@@ -54,7 +56,8 @@ class MasterState {
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         } finally {
-            semaphore.release(); // esce da sezione critica
+            // Uscita dalla sezione critica --> rilascio del semaforo
+            semaphore.release(); 
         }
     }
 
@@ -69,9 +72,10 @@ class MasterState {
         try {
             semaphore.acquire();
             PeerInfo oldInfo = peers.get(peerId);
+            // Peer non registrato
             if (oldInfo == null) return;
 
-            // Costruisce PeerInfo aggiornato
+            // Costruisce PeerInfo aggiornato con nuove risorse e timestamp
             PeerInfo updated = new PeerInfo(peerId, oldInfo.getAddress(), oldInfo.getPort(), newResources, Instant.now());
             peers.put(peerId, updated);
 
@@ -109,6 +113,7 @@ class MasterState {
 
         try {
             semaphore.acquire();
+            // Rimuove il peer
             PeerInfo info = peers.remove(peerId);
             if (info == null) return;
 
@@ -119,6 +124,7 @@ class MasterState {
                     if (set != null) {
                         set.remove(peerId);
                         if (set.isEmpty()) {
+                             // Elimina risorsa se nessuno la possiede più
                             resourceToPeers.remove(r);
                         }
                     }
@@ -134,7 +140,7 @@ class MasterState {
     }
 
     /**
-     * Restituisce una copia della mappa risorsa -> insieme di peer (readonly).
+     * Restituisce una copia della mappa risorsa --> insieme di peer (readonly).
      * Lettura non bloccante su semaforo, ma usa read-lock per resourceToPeers.
      */
     public Map<String, Set<String>> listAllResources() {
@@ -142,6 +148,7 @@ class MasterState {
         try {
             Map<String, Set<String>> snapshot = new TreeMap<>();
             for (Map.Entry<String, Set<String>> entry : resourceToPeers.entrySet()) {
+                // Copia immutabile
                 snapshot.put(entry.getKey(), Set.copyOf(entry.getValue()));
             }
             return snapshot;
@@ -175,6 +182,7 @@ class MasterState {
         String nextPeer = null;
         try {
             semaphore.acquire();
+            // Rimozione del peer fallito
             tableLock.writeLock().lock();
             try {
                 Set<String> set = resourceToPeers.get(resource);
@@ -187,7 +195,7 @@ class MasterState {
             } finally {
                 tableLock.writeLock().unlock();
             }
-            // Cerca il prossimo candidato
+            // Cerca il prossimo candidato --> se esistono altri peer che possiedono la risorsa, ne restituisce uno
             Set<String> remaining = getPeersFor(resource);
             if (!remaining.isEmpty()) {
                 nextPeer = remaining.iterator().next();
