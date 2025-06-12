@@ -78,8 +78,8 @@ class MasterServer {
         // Arresta il thread pool in modo ordinato
         pool.shutdown();
         try {
-            // Aspetta fino a 5 secondi per la terminazione ordinata dei task
-            if (!pool.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)) {
+            // Aspetta fino a 0 secondi per la terminazione ordinata dei task
+            if (!pool.awaitTermination(0, java.util.concurrent.TimeUnit.SECONDS)) {
                 // Se non termina in tempo, forza la chiusura dei thread
                 pool.shutdownNow();
             }
