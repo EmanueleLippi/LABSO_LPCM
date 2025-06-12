@@ -2,9 +2,9 @@ package Peer.client;
 
 import Common.Protocol;
 import Peer.utils.Logger;
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.InputStreamReader;
+
+import java.io.BufferedInputStream;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.Socket;
 
@@ -12,30 +12,46 @@ import java.net.Socket;
 // Implementa i metodi per connettersi a un peer, inviare richieste di download e ricevere file
 // La logica di connessione e comunicazione con i peer sarà implementata qui
 public class PeerClientToPeer {
+
+     // Legge una linea di testo dal BufferedInputStream.
+    // Ritorna null se il flusso termina senza dati.
+    private String readLine(BufferedInputStream in) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int c;
+        while ((c = in.read()) != -1) {
+            if (c == '\n') {
+                break;
+            }
+            sb.append((char) c);
+        }
+        if (c == -1 && sb.length() == 0) {
+            return null;
+        }
+        return sb.toString();
+    }
+
     // metodo per scaricare un file da un peer
     public byte[] requestFile(String peerAddress, int peerPort, String fileName) {
         try (Socket socket = new Socket(peerAddress, peerPort);
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            DataInputStream datain = new DataInputStream(socket.getInputStream())) {
+            BufferedInputStream in = new BufferedInputStream(socket.getInputStream())){
 
             // 1. Invia la richiesta di download
             out.println(Protocol.DOWNLOAD_REQUEST + " " + fileName);
 
 
             // 2. Attende risposta
-            String response = in.readLine();
+            String response = readLine(in);
             if (response != null && response.startsWith(Protocol.DOWNLOAD_DATA)) {
                 String[] headerParts = response.split(" ",2);
                 String headerFile = headerParts.length > 1 ? headerParts[1] : fileName;
                 Logger.info("Download del file '" + headerFile + "' avviato da " + peerAddress + ":" + peerPort);
 
                 // 3. Legge la dimensione del file (riga successiva)
-                String sizeStr = in.readLine();
+                String sizeStr = readLine(in);
                 int fileSize = Integer.parseInt(sizeStr);
 
                 byte[] fileData = new byte[fileSize];
-                datain.readFully(fileData);  // legge esattamente fileSize byte
 
                 Logger.info("Download completato. Ricevuti " + fileSize + " byte.");
                 return fileData;

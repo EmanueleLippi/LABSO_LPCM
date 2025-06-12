@@ -79,5 +79,10 @@ public class FileManager {
         }
         Path filePath = Path.of(downloadsFolderPath, filename);
         Files.write(filePath, data); // Sovrascrive il file se esiste già
+
+        byte[] written = Files.readAllBytes(filePath);
+        if (!java.util.Arrays.equals(data, written)) {
+            throw new IOException("Il file salvato non corrisponde ai dati ricevuti");
+        }
     }
 }
