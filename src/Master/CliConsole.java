@@ -124,10 +124,10 @@ class CliConsole implements Runnable {
      * Gestisce il comando 'quit' per terminare il server Master e uscire.
      */
     private void handleQuit() {
-        // Ferma il server Master e rilascia risorse
-        server.shutdown();
         System.out.println("Master disconnesso e server terminato.");
         // Esci dal programma
         System.exit(0);
+        // Ferma il server Master e rilascia risorse
+        server.shutdown();
     }
 }
