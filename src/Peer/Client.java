@@ -126,6 +126,8 @@ public class Client {
                             if (data != null) {
                                 try {
                                     FileManager.saveFile(resource, data);
+                                    localFiles = FileManager.getLocalFiles();
+                                    masterClient.update(peerName, myPort, localFiles);
                                     Logger.info("File '" + resource + "' salvato in " + myRepo.getPath() + "/.");
                                     success = true;
                                 } catch (Exception e) {
