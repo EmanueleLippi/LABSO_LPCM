@@ -173,9 +173,6 @@ private void handleGetPeers(String[] tokens) throws IOException {
         return;
     }
     String resource = tokens[1];
-    // Il MasterState.getPeersFor ora restituisce direttamente la stringa di risposta già formattata:
-    // - PEER_FOR_RESOURCE <count> <pid1> <ip1> <port1> ...
-    // - oppure RESOURCE_NOT_FOUND <resource>
     String reply = state.getPeersFor(resource);
     sendResponse(reply);
 }

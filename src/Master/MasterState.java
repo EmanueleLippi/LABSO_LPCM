@@ -20,9 +20,6 @@ class MasterState {
     private final LinkedBlockingQueue<DownloadLogEntry> downloadLog = new LinkedBlockingQueue<>();
 
     public void registerPeer(String peerId, InetAddress address, int port, Set<String> resources) {
-        Objects.requireNonNull(peerId);
-        Objects.requireNonNull(address);
-        Objects.requireNonNull(resources);
         try {
             semaphore.acquire();
             PeerInfo info = new PeerInfo(peerId, address, port, resources, Instant.now());
@@ -44,8 +41,6 @@ class MasterState {
     }
 
     public void updatePeerResources(String peerId, Set<String> newResources) {
-        Objects.requireNonNull(peerId);
-        Objects.requireNonNull(newResources);
         try {
             semaphore.acquire();
             PeerInfo oldInfo = peers.get(peerId);
@@ -78,7 +73,6 @@ class MasterState {
     }
 
     public void removePeer(String peerId) {
-        Objects.requireNonNull(peerId);
         try {
             semaphore.acquire();
             PeerInfo info = peers.remove(peerId);
@@ -120,7 +114,6 @@ class MasterState {
 
     // Interno: restituisce il set immutabile dei peerId
     private Set<String> fetchPeerIds(String resource) {
-        Objects.requireNonNull(resource);
         tableLock.readLock().lock();
         try {
             Set<String> set = resourceToPeers.get(resource);
@@ -152,8 +145,6 @@ class MasterState {
     }
 
     public String handleDownloadFail(String resource, String failedPeer) {
-        Objects.requireNonNull(resource);
-        Objects.requireNonNull(failedPeer);
         String nextPeer = null;
         try {
             semaphore.acquire();
@@ -182,9 +173,10 @@ class MasterState {
     }
 
     public void addDownloadLog(DownloadLogEntry entry) {
-        Objects.requireNonNull(entry);
-        downloadLog.add(entry);
+    System.out.println("[DEBUG] Aggiungo log: " + entry);
+    downloadLog.add(entry);
     }
+
 
     public List<DownloadLogEntry> getLogEntries() {
         return List.copyOf(downloadLog);
