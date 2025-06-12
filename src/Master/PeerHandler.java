@@ -1,24 +1,26 @@
 package Master;
 
+import Common.DownloadLogEntry;
 import Common.Protocol;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import Common.DownloadLogEntry;
-import java.time.Instant;
 
 /**
- * Gestisce la connessione con un singolo peer.
- * Interpreta i comandi in arrivo e risponde secondo il protocollo definito in Common.Protocol.
+ * Ogni istanza gestisce la comunicazione tra un singolo peer e il master, 
+ * processa i comandi che il peer invia tramite socket.
 */
 class PeerHandler implements Runnable {
 
+    // connessione con un peer
     private final Socket socket;
+    // stato globale del master
     private final MasterState state;
-
+    // stream per leggere / scrivere dal e verso il peer
     private BufferedReader in;
     private BufferedWriter out;
 
@@ -35,10 +37,12 @@ class PeerHandler implements Runnable {
     */
     @Override
     public void run() {
+        // Prepara gli stream per comunicare con il peer
         try {
             in  = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             out = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
 
+            // Ciclo che ascolta i comandi inviati dal peer riga per riga
             String line;
             while ((line = in.readLine()) != null) {
                 // Divisione della riga in token, usando lo spazio come delimitatore
@@ -46,7 +50,7 @@ class PeerHandler implements Runnable {
                 if (tokens.length == 0) continue;
 
                 String cmd = tokens[0];
-                // Gestione comandi secondo Protocol
+                // Invoca il metodo corrispondente al comando.
                 switch (cmd) {
                     case Protocol.REGISTER                   -> handleRegister(tokens);
                     case Protocol.UPDATE                     -> handleUpdate(tokens);
@@ -54,8 +58,7 @@ class PeerHandler implements Runnable {
                     case Protocol.GET_PEERS_FOR_RESOURCE     -> handleGetPeers(tokens);
                     case Protocol.DOWNLOAD_LOG               -> handleDownloadLog(tokens);
                     case Protocol.DOWNLOAD_FAIL              -> handleDownloadFail(tokens);
-                    case Protocol.DISCONNECTED               -> {
-                        handleDisconnect(tokens);
+                    case Protocol.DISCONNECTED               -> {handleDisconnect(tokens);
                         return; // chiude il thread
                     }
                     default                                 -> sendResponse(Protocol.ERROR + " UNKNOWN_COMMAND");
@@ -73,17 +76,21 @@ class PeerHandler implements Runnable {
      * Gestisce il comando DOWNLOAD_LOG.
      * Sintassi: DOWNLOAD_LOG <resource> <fromPeer> <toPeer> <success>
      */
+
     private void handleDownloadLog(String[] tokens) throws IOException {
         if (tokens.length != 5) {
-            sendResponse(Protocol.ERROR + " Missing args for DOWNLOAD_LOG");
+            sendResponse(Protocol.ERROR + " Mancano argomenti per il comando DOWNLOAD_LOG");
             return;
         }
         String resource = tokens[1];
         String fromPeer = tokens[2];
         String toPeer = tokens[3];
         boolean success = Boolean.parseBoolean(tokens[4]);
+        // oggetto che rappresenta un tentativo di download 
         DownloadLogEntry entry = new DownloadLogEntry(Instant.now(), resource, fromPeer, toPeer, success);
+        // Aggiunge il log appena creato alla coda di log nel MasterState
         state.addDownloadLog(entry);
+        // Conferma che il log è stato ricevuto e registrato correttamente dal master
         sendResponse(Protocol.LOG_OK);
     }
 
@@ -92,8 +99,9 @@ class PeerHandler implements Runnable {
      * Sintassi: REGISTER <peerId> <peerPort> <numRisorse> <ris1> <ris2> ... <risN>
     */
     private void handleRegister(String[] tokens) throws IOException {
+        // Controlla che i parametri siano completi e coerenti
         if (tokens.length < 4) {
-            sendResponse(Protocol.ERROR + " Missing arguments for REGISTER");
+            sendResponse(Protocol.ERROR + " Mancano argomenti per il comando REGISTER");
             return;
         }
         String peerId = tokens[1];
@@ -102,21 +110,22 @@ class PeerHandler implements Runnable {
         try {
             peerPort = Integer.parseInt(tokens[2]);
         } catch (NumberFormatException ex) {
-            sendResponse(Protocol.ERROR + " Bad peerPort for REGISTER");
+            sendResponse(Protocol.ERROR + " PeerPort errata per REGISTER");
             return;
         }
         int n;
         try {
             n = Integer.parseInt(tokens[3]);
         } catch (NumberFormatException ex) {
-            sendResponse(Protocol.ERROR + " Bad numRisorse for REGISTER");
+            sendResponse(Protocol.ERROR + " numRisorse errato per REGISTER");
             return;
         }
         // Verifica che il numero di risorse corrisponda a quanto dichiarato, in caso positivo crea il set
         if (tokens.length != 4 + n) {
-            sendResponse(Protocol.ERROR + " REGISTER count mismatch");
+            sendResponse(Protocol.ERROR + " Incoerenza di numero di risorse per REGISTER");
             return;
         }
+        
         Set<String> resources = new HashSet<>();
         for (int i = 0; i < n; i++) {
             resources.add(tokens[4 + i]);
@@ -134,19 +143,20 @@ class PeerHandler implements Runnable {
     */
     private void handleUpdate(String[] tokens) throws IOException {
         if (tokens.length < 3) {
-            sendResponse(Protocol.ERROR + " Missing arguments for UPDATE");
+            sendResponse(Protocol.ERROR + " Mancano argomenti per il comando UPDATE");
             return;
         }
+        // Controlla che i parametri siano completi e coerenti
         String peerId = tokens[1];
         int n;
         try {
             n = Integer.parseInt(tokens[2]);
         } catch (NumberFormatException ex) {
-            sendResponse(Protocol.ERROR + " Bad numRisorse for UPDATE");
+            sendResponse(Protocol.ERROR + " numRisorse errato per UPDATE");
             return;
         }
         if (tokens.length != 3 + n) {
-            sendResponse(Protocol.ERROR + " UPDATE count mismatch");
+            sendResponse(Protocol.ERROR + " Incoerenza di numero di risorse per UPDATE");
             return;
         }
          // Costruisce il nuovo set di risorse
@@ -180,23 +190,20 @@ class PeerHandler implements Runnable {
         sendResponse(sb.toString());
     }
 
+
     /**
      * Gestisce il comando GET_PEERS_FOR_RESOURCE --> Restituisce i peer che posseggono una risorsa specifica.
      * Sintassi: GET_PEERS_FOR_RESOURCE <risorsa>
-    */
-/**
- * Gestisce il comando GET_PEERS_FOR_RESOURCE --> Restituisce i peer che posseggono una risorsa specifica.
- * Sintassi: GET_PEERS_FOR_RESOURCE <risorsa>
- */
-private void handleGetPeers(String[] tokens) throws IOException {
-    if (tokens.length != 2) {
-        sendResponse(Protocol.ERROR + " Missing argument for GET_PEERS_FOR_RESOURCE");
-        return;
+     */
+    private void handleGetPeers(String[] tokens) throws IOException {
+        if (tokens.length != 2) {
+            sendResponse(Protocol.ERROR + " Mancano argomenti per il comando GET_PEERS_FOR_RESOURCE");
+            return;
+        }
+        String resource = tokens[1];
+        String reply = state.getPeersFor(resource);
+        sendResponse(reply);
     }
-    String resource = tokens[1];
-    String reply = state.getPeersFor(resource);
-    sendResponse(reply);
-}
 
 
     /**
@@ -205,7 +212,7 @@ private void handleGetPeers(String[] tokens) throws IOException {
     */
     private void handleDownloadFail(String[] tokens) throws IOException {
         if (tokens.length != 3) {
-            sendResponse(Protocol.ERROR + " Missing args for DOWNLOAD_FAIL");
+            sendResponse(Protocol.ERROR + " Mancano argomenti per il comando DOWNLOAD_FAIL");
             return;
         }
         String risorsa = tokens[1];
@@ -227,7 +234,7 @@ private void handleGetPeers(String[] tokens) throws IOException {
     */
     private void handleDisconnect(String[] tokens) throws IOException {
         if (tokens.length != 2) {
-            sendResponse(Protocol.ERROR + " Missing argument for DISCONNECTED");
+            sendResponse(Protocol.ERROR + " Mancano argomenti per il comando DISCONNECTED");
             return;
         }
         String peerId = tokens[1];
@@ -238,7 +245,7 @@ private void handleGetPeers(String[] tokens) throws IOException {
     }
 
     /**
-     * Invia una risposta al peer nel formato del protocollo (terminata con \r\n)
+     * Invia una risposta al peer nel formato del protocollo
     */
     private void sendResponse(String msg) throws IOException {
         out.write(msg);

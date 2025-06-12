@@ -52,10 +52,14 @@ class CliConsole implements Runnable {
     }
 
     /**
-     * Gestisce il comando 'listdata' per elencare le risorse disponibili in rete.
+     * Gestisce il comando listdata della console del Master. 
+     * Recupera la lista di tutte le risorse conosciute e da quali peer sono disponibili.
      */
     private void handleListData() {
+        //recupera l'oggetto MasterState che contiene lo stato globale di risorse e peer
         MasterState state = server.getState();
+        // Richiede la mappa completa delle risorse con i relativi peer che le possiedono.
+        // chiave: nome risorsa; valore: ID dei peer che la possiedono
         Map<String, Set<String>> all = state.listAllResources();
         System.out.println("Risorse disponibili in rete:");
         for (Map.Entry<String, Set<String>> entry : all.entrySet()) {
@@ -64,15 +68,17 @@ class CliConsole implements Runnable {
     }
 
     /**
-     * Gestisce il comando 'inspectNodes' per ispezionare i peer e le risorse.
+     * Gestisce il comando inspectNodes, aprendo una sottoconsole interattiva 
+     * per esplorare lo stato di singoli peer o delle risorse.
      */
     private void handleInspectNodes(BufferedReader console) throws IOException {
+        // Recupera lo stato corrente del server.
         MasterState state = server.getState();
-        System.out.println(
-                "Modalità inspectNodes: digita 'peer <peerId>' o 'resource <nomeRisorsa>' o 'exit' per uscire.");
+        System.out.println("Modalità inspectNodes: digita 'peer <peerId>' o 'resource <nomeRisorsa>' o 'exit' per uscire.");
         while (true) {
             System.out.print("> ");
             String cmd = console.readLine();
+            // Se il comando è exit o input nullo, esce dalla modalità inspect.
             if (cmd == null || cmd.trim().equals("exit")) {
                 System.out.println("Uscita da inspectNodes.");
                 return;
@@ -82,29 +88,28 @@ class CliConsole implements Runnable {
                 System.out.println("Syntax: peer <peerId> | resource <nomeRisorsa> | exit");
                 continue;
             }
+            // Valuta se il primo token è peer o resource.
             switch (tokens[0]) {
                 case "peer" -> {
-                    String pid = tokens[1];
-                    var info = state.inspectPeer(pid);
+                    String pID = tokens[1];
+                    // restituisce informazioni su un peer specifico oppure null se non esiste.
+                    var info = state.inspectPeer(pID);
+                    // Cerca e stampa informazioni su un peer specifico. Se non trovato, stampa errore.
                     if (info == null) {
-                        System.out.println("Peer non trovato: " + pid);
+                        System.out.println("Peer non trovato: " + pID);
                     } else {
-                        System.out.printf(
-                                "Peer %s @%s:%d - risorse: %s - lastSeen: %s%n",
-                                info.getId(),
-                                info.getAddress(),
-                                info.getPort(),
-                                info.getResources(),
-                                info.getLastSeen());
+                        System.out.printf("Peer %s @%s:%d - risorse: %s - lastSeen: %s%n",info.getId(),info.getAddress(),info.getPort(), info.getResources(),info.getLastSeen());
                     }
                 }
+                // Verifica quali peer possiedono una risorsa specifica. Se nessuno, lo segnala. Altrimenti mostra l’elenco.
                 case "resource" -> {
-                    String ris = tokens[1];
-                    Set<String> peers = state.inspectPeersByResource(ris);
+                    String risorsa = tokens[1];
+                    // restituisce un oggetto di tipo Set<String> contenente gli ID di tutti i peer che hanno registrato quella risorsa.
+                    Set<String> peers = state.inspectPeersByResource(risorsa);
                     if (peers.isEmpty()) {
-                        System.out.println("Nessun peer possiede la risorsa: " + ris);
+                        System.out.println("Nessun peer possiede la risorsa: " + risorsa);
                     } else {
-                        System.out.printf("Risorsa %s posseduta da: %s%n", ris, peers);
+                        System.out.printf("Risorsa %s posseduta da: %s%n", risorsa, peers);
                     }
                 }
                 default -> System.out.println("Syntax: peer <peerId> | resource <nomeRisorsa> | exit");
@@ -113,20 +118,15 @@ class CliConsole implements Runnable {
     }
 
     /**
-     * Gestisce il comando 'log' per visualizzare i tentativi di download registrati.
+     * Gestisce il comando 'log' Mostra i tentativi di download registrati nel log del Master
      */
     private void handleLog() {
+        //Ottiene dal server lo stato attuale e la lista di DownloadLogEntry.
         MasterState state = server.getState();
         var entries = state.getLogEntries();
         System.out.println("Elenco tentativi di download:");
         for (DownloadLogEntry e : entries) {
-            System.out.printf(
-                    "- %s risorsa: %s da: %s a: %s success: %s%n",
-                    e.getTimestamp(),
-                    e.getResource(),
-                    e.getFromPeer(),
-                    e.getToPeer(),
-                    e.isSuccess());
+            System.out.printf("- %s risorsa: %s da: %s a: %s success: %s%n",e.getTimestamp(),e.getResource(),e.getFromPeer(),e.getToPeer(),e.isSuccess());
         }
     }
 
@@ -137,7 +137,5 @@ class CliConsole implements Runnable {
         System.out.println("Master disconnesso e server terminato.");
         // Esci dal programma
         System.exit(0);
-        // Ferma il server Master e rilascia risorse
-        server.shutdown();
     }
 }
