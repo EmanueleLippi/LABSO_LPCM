@@ -15,6 +15,10 @@ public class Protocol {
     public static final String GET_PEERS_FOR_RESOURCE = "GET_PEERS_FOR_RESOURCE"; // Richiesta lista peer per una risorsa specifica
     public static final String DOWNLOAD_FAIL = "DOWNLOAD_FAIL"; // Download fallito notificato
     public static final String DISCONNECTED = "DISCONNECTED"; // Peer si disconnette dal Master
+    public static final String DOWNLOAD_LOG = "DOWNLOAD_LOG"; // Invio log download al Master
+    public static final String LOG_OK = "LOG_OK"; // Risposta alla registrazione log
+
+
 
     // Da Master a Peer
     public static final String ERROR = "ERROR";

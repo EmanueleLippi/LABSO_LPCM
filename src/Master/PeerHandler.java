@@ -7,6 +7,8 @@ import java.net.Socket;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import Common.DownloadLogEntry;
+import java.time.Instant;
 
 /**
  * Gestisce la connessione con un singolo peer.
@@ -50,6 +52,7 @@ class PeerHandler implements Runnable {
                     case Protocol.UPDATE                     -> handleUpdate(tokens);
                     case Protocol.LIST_DATA_REMOTE           -> handleListData();
                     case Protocol.GET_PEERS_FOR_RESOURCE     -> handleGetPeers(tokens);
+                    case Protocol.DOWNLOAD_LOG               -> handleDownloadLog(tokens);
                     case Protocol.DOWNLOAD_FAIL              -> handleDownloadFail(tokens);
                     case Protocol.DISCONNECTED               -> {
                         handleDisconnect(tokens);
@@ -64,6 +67,24 @@ class PeerHandler implements Runnable {
             // Chiude la connessione e libera risorse
             cleanup();
         }
+    }
+
+     /**
+     * Gestisce il comando DOWNLOAD_LOG.
+     * Sintassi: DOWNLOAD_LOG <resource> <fromPeer> <toPeer> <success>
+     */
+    private void handleDownloadLog(String[] tokens) throws IOException {
+        if (tokens.length != 5) {
+            sendResponse(Protocol.ERROR + " Missing args for DOWNLOAD_LOG");
+            return;
+        }
+        String resource = tokens[1];
+        String fromPeer = tokens[2];
+        String toPeer = tokens[3];
+        boolean success = Boolean.parseBoolean(tokens[4]);
+        DownloadLogEntry entry = new DownloadLogEntry(Instant.now(), resource, fromPeer, toPeer, success);
+        state.addDownloadLog(entry);
+        sendResponse(Protocol.LOG_OK);
     }
 
     /**

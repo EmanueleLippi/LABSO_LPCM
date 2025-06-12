@@ -123,16 +123,21 @@ public class Client {
                             String ip = t[1];
                             int port = Integer.parseInt(t[2]);
                             byte[] data = downloader.requestFile(ip, port, resource);
+                            boolean attemptOk = false;
                             if (data != null) {
                                 try {
                                     FileManager.saveFile(resource, data);
                                     localFiles = FileManager.getLocalFiles();
                                     masterClient.update(peerName, myPort, localFiles);
                                     Logger.info("File '" + resource + "' salvato in " + myRepo.getPath() + "/.");
+                                    attemptOk = true;
                                     success = true;
                                 } catch (Exception e) {
                                     Logger.error("Errore salvataggio: " + e.getMessage());
                                 }
+                            }
+                            masterClient.logDownload(resource, pid, peerName, attemptOk);
+                            if (attemptOk) {
                                 break;
                             } else {
                                 masterClient.notifyDownloadFail(resource, pid);

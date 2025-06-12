@@ -52,6 +52,14 @@ public class PeerClientToPeer {
                 int fileSize = Integer.parseInt(sizeStr);
 
                 byte[] fileData = new byte[fileSize];
+                int bytesRead = 0;
+                while (bytesRead < fileSize) {
+                    int read = in.read(fileData, bytesRead, fileSize - bytesRead);
+                    if (read == -1) {
+                        throw new IOException("Fine del flusso prima del previsto");
+                    }
+                    bytesRead += read;
+                }
 
                 Logger.info("Download completato. Ricevuti " + fileSize + " byte.");
                 return fileData;

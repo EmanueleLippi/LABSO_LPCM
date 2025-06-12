@@ -159,6 +159,20 @@ public class PeerClientToMaster {
         return result;
     }
 
+    // Invia un log di download al Master
+    public void logDownload(String resource, String fromPeer, String toPeer, boolean success){
+        try(Socket socket = new Socket(masterAddress, masterPort)){
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String cmd = Protocol.DOWNLOAD_LOG + " " + resource + " " + fromPeer + " " + toPeer + " " + success;
+            out.println(cmd);
+            String response = in.readLine();
+            Logger.info("Risposta log dal Master: " + response);
+        } catch(IOException e){
+            Logger.error("Errore durante l'invio del log download al Master: " + e.getMessage());
+        }
+    }
+
 
     // Metodo che notifica un fallimento del download di un file al Master
     public void notifyDownloadFail(String resourceName, String peerName){
