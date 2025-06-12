@@ -52,7 +52,7 @@ public class PeerClientToMaster {
             // Espone la risposta del Master
             Logger.info("Risposta dal Master alla registrazione: " + response);
             // TODO: Gestire la risposta del Master
-            if(response != null && response.startsWith(Protocol.REGISTER)){
+            if(response != null && response.startsWith(Protocol.REGISTERED)){
                 Logger.info("Registrazione al Master completata con successo.");
             } else {
                 Logger.warn("Registrazione al Master fallita: " + response);
