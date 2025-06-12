@@ -20,7 +20,7 @@ public class Client {
         int masterPort = Integer.parseInt(args[1]);
 
         // 1. Scegli repo non in uso
-        File baseFolder = new File("shared/files");
+        File baseFolder = new File(System.getProperty("user.dir"), "shared/files");
         File[] repoFolders = baseFolder.listFiles(File::isDirectory);
         if (repoFolders == null || repoFolders.length == 0) {
             Logger.error("Nessuna cartella trovata in shared/files/. Impossibile avviare il peer.");
