@@ -59,7 +59,7 @@ public class Client {
 
         // 4. Configura cartelle
         FileManager.setSharedFolderPath(myRepo.getPath());
-        FileManager.setDownloadsFolderPath("download");
+        FileManager.setDownloadsFolderPath(myRepo.getPath());
 
         PeerServer peerServer = new PeerServer(myPort);
         new Thread(peerServer).start();
@@ -126,7 +126,7 @@ public class Client {
                             if (data != null) {
                                 try {
                                     FileManager.saveFile(resource, data);
-                                    Logger.info("File '" + resource + "' salvato in download/.");
+                                    Logger.info("File '" + resource + "' salvato in " + myRepo.getPath() + "/.");
                                     success = true;
                                 } catch (Exception e) {
                                     Logger.error("Errore salvataggio: " + e.getMessage());
