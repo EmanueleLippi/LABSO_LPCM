@@ -7,6 +7,16 @@ import java.io.InputStreamReader;
 import java.util.Map;
 import java.util.Set;
 
+/*
+ * TERMINALE 1:
+ * javac -d out (Get-ChildItem -Recurse -Filter *.java -Path src | ForEach-Object { $_.FullName })
+ * cd out
+ * java Master.Master 9000
+ * TERMINALE 2:
+ * javac -d out (Get-ChildItem -Recurse -Filter *.java -Path src | ForEach-Object { $_.FullName })
+ * java -cp out Peer.Client 127.0.0.1 9000
+ */
+
 /**
  * Thread che gestisce la console interattiva dell'operatore Master.
  * I comandi disponibili non bloccano il servizio di rete.
