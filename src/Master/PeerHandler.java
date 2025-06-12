@@ -163,27 +163,23 @@ class PeerHandler implements Runnable {
      * Gestisce il comando GET_PEERS_FOR_RESOURCE --> Restituisce i peer che posseggono una risorsa specifica.
      * Sintassi: GET_PEERS_FOR_RESOURCE <risorsa>
     */
-    private void handleGetPeers(String[] tokens) throws IOException {
-        if (tokens.length != 2) {
-            sendResponse(Protocol.ERROR + " Missing argument for GET_PEEERS_FOR_RESOURCE");
-            return;
-        }
-        String risorsa = tokens[1];
-        // Ottiene i peer che hanno la risorsa
-        Set<String> peers = state.getPeersFor(risorsa);
-        // Se non ci sono peer, risponde con RESOURCE_NOT_FOUN
-        if (peers.isEmpty()) {
-            sendResponse(Protocol.RESOURCE_NOT_FOUND + " " + risorsa);
-        // Altrimenti, costruisce la risposta con il numero di peer e i loro ID
-        } else {
-            StringBuilder sb = new StringBuilder();
-            sb.append(Protocol.PEER_FOR_RESOURCE).append(" ").append(peers.size());
-            for (String pid : peers) {
-                sb.append(" ").append(pid);
-            }
-            sendResponse(sb.toString());
-        }
+/**
+ * Gestisce il comando GET_PEERS_FOR_RESOURCE --> Restituisce i peer che posseggono una risorsa specifica.
+ * Sintassi: GET_PEERS_FOR_RESOURCE <risorsa>
+ */
+private void handleGetPeers(String[] tokens) throws IOException {
+    if (tokens.length != 2) {
+        sendResponse(Protocol.ERROR + " Missing argument for GET_PEERS_FOR_RESOURCE");
+        return;
     }
+    String resource = tokens[1];
+    // Il MasterState.getPeersFor ora restituisce direttamente la stringa di risposta già formattata:
+    // - PEER_FOR_RESOURCE <count> <pid1> <ip1> <port1> ...
+    // - oppure RESOURCE_NOT_FOUND <resource>
+    String reply = state.getPeersFor(resource);
+    sendResponse(reply);
+}
+
 
     /**
      * Gestisce il comando DOWNLOAD_FAIL --> Cerca un nuovo peer per scaricare la risorsa.
