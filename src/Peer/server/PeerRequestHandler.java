@@ -6,12 +6,13 @@ import Peer.utils.Logger;
 import java.io.*;
 import java.net.Socket;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PeerRequestHandler implements Runnable {
 
     private final Socket clientSocket;
-    private static final Semaphore semaphore = new Semaphore(1, true);
-
+    // Mappa dei semafori per file: consente download concorrenti di file diversi
+    private static final ConcurrentHashMap<String, Semaphore> fileSemaphores = new ConcurrentHashMap<>();
     public PeerRequestHandler(Socket clientSocket) {
         this.clientSocket = clientSocket;
     }
@@ -20,14 +21,12 @@ public class PeerRequestHandler implements Runnable {
     //TODO: Valuatre se mettere semafori per file e non per richiesta
     /**
      * Metodo che gestisce le richieste dei peer.
-     * Si occupa di leggere la richiesta dal client, verificare se il file esiste
-     * e inviarlo se disponibile, oppure rispondere con un messaggio di errore.
-     * Utilizza un semaforo per garantire l'accesso esclusivo alla sezione critica.
+    * Legge la richiesta dal client e, se valida, invia il file richiesto.
+     * I download vengono serializzati solo sullo stesso file utilizzando
+     * un semaforo dedicato per ciascun nome di file.
      */
     @Override
     public void run() {
-    try {
-        semaphore.acquire();  // Entra in sezione critica
         try (
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             OutputStream out = clientSocket.getOutputStream();
@@ -35,30 +34,30 @@ public class PeerRequestHandler implements Runnable {
             String request = in.readLine();
             Logger.info("[REQUEST HANDLER] Ricevuta richiesta: " + request);
 
-            /* Gestione della richiesta di download
-            Controlla se la richiesta è valida e inizia con il prefisso corretto
-            Se la richiesta è di tipo DOWNLOAD_REQUEST, verifica il file richiesto
-            Se il file esiste, lo legge e lo invia al client
-            Se il file non esiste, risponde con DOWNLOAD_DENIED
-            Se la richiesta non è valida, risponde con un errore generico
-            */
             if (request != null && request.startsWith(Protocol.DOWNLOAD_REQUEST)) {
                 String[] parts = request.split(" ");
                 if (parts.length == 2) {
                     String fileName = parts[1];
-                    if (FileManager.hasFile(fileName)) {
-                        byte[] content = FileManager.readFile(fileName);
-                        String header = Protocol.DOWNLOAD_DATA + " " + fileName + "\n";
-                        out.write(header.getBytes());
-                        out.write((content.length + "\n").getBytes());
-                        out.write(content);
-                        out.flush();
-                        Logger.info("[REQUEST HANDLER] File '" + fileName + "' inviato con "+content.length+" byte.");
-                    } else {
-                        String response = Protocol.DOWNLOAD_DENIED + " " + fileName + "\n";
-                        out.write(response.getBytes());
-                        out.flush();
-                        Logger.info("[REQUEST HANDLER] File '" + fileName + "' non trovato.");
+                    Semaphore fileSemaphore = fileSemaphores.computeIfAbsent(fileName, f -> new Semaphore(1, true));
+                    try {
+                        fileSemaphore.acquire();
+
+                        if (FileManager.hasFile(fileName)) {
+                            byte[] content = FileManager.readFile(fileName);
+                            String header = Protocol.DOWNLOAD_DATA + " " + fileName + "\n";
+                            out.write(header.getBytes());
+                            out.write((content.length + "\n").getBytes());
+                            out.write(content);
+                            out.flush();
+                            Logger.info("[REQUEST HANDLER] File '" + fileName + "' inviato con " + content.length + " byte.");
+                        } else {
+                            String response = Protocol.DOWNLOAD_DENIED + " " + fileName + "\n";
+                            out.write(response.getBytes());
+                            out.flush();
+                            Logger.info("[REQUEST HANDLER] File '" + fileName + "' non trovato.");
+                        }
+                    } finally {
+                        fileSemaphore.release();
                     }
                 } else {
                     String response = Protocol.DOWNLOAD_DENIED + " INVALID_FORMAT\n";
@@ -72,6 +71,9 @@ public class PeerRequestHandler implements Runnable {
                 out.flush();
                 Logger.error("[REQUEST HANDLER] Comando sconosciuto.");
             }
+            } catch (InterruptedException e) {
+            Logger.error("[REQUEST HANDLER] Interrotto durante attesa semaforo: " + e.getMessage());
+            Thread.currentThread().interrupt();
 
         } catch (IOException e) {
             Logger.error("[REQUEST HANDLER] Errore I/O: " + e.getMessage());
@@ -82,12 +84,5 @@ public class PeerRequestHandler implements Runnable {
                 Logger.error("[REQUEST HANDLER] Errore chiusura socket: " + e.getMessage());
             }
         }
-    } catch (InterruptedException e) {
-        Logger.error("[REQUEST HANDLER] Interrotto durante attesa semaforo: " + e.getMessage());
-        Thread.currentThread().interrupt();
-    } finally {
-        semaphore.release();  // Esce dalla sezione critica
     }
-}
-
 }

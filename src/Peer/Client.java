@@ -19,32 +19,56 @@ public class Client {
         String masterIP = args[0];
         int masterPort = Integer.parseInt(args[1]);
 
-        // 1. Scegli repo non in uso
+        // 1. Scegli repo non in uso oppure crea una nuova cartella
         File baseFolder = new File(System.getProperty("user.dir"), "shared/files");
+        baseFolder.mkdirs();
+
         File[] repoFolders = baseFolder.listFiles(File::isDirectory);
-        if (repoFolders == null || repoFolders.length == 0) {
-            Logger.error("Nessuna cartella trovata in shared/files/. Impossibile avviare il peer.");
-            return;
-        }
 
         File myRepo = null;
-        for (File folder : repoFolders) {
-            File marker = new File(folder, ".in-use");
-            if (!marker.exists()) {
-                myRepo = folder;
-                try {
-                    marker.createNewFile(); // segna la repo come in uso
-                } catch (IOException e) {
-                    Logger.error("Impossibile creare file .in-use per " + folder.getName());
-                    return;
+        if (repoFolders != null) {
+            for (File folder : repoFolders) {
+                File marker = new File(folder, ".in-use");
+                if (!marker.exists()) {
+                    myRepo = folder;
+                    try {
+                        marker.createNewFile(); // segna la repo come in uso
+                    } catch (IOException e) {
+                        Logger.error("Impossibile creare file .in-use per " + folder.getName());
+                        return;
+                    }
+                    break;
                 }
-                break;
             }
         }
 
         if (myRepo == null) {
-            Logger.error("Tutte le repo sono già in uso. Impossibile avviare un nuovo peer.");
-            return;
+            // nessuna repo libera o nessuna repo esistente: crea nuova cartella
+            int maxIndex = -1;
+            if (repoFolders != null) {
+                for (File folder : repoFolders) {
+                    String name = folder.getName();
+                    if (name.startsWith("repo")) {
+                        try {
+                            int n = Integer.parseInt(name.substring(4));
+                            if (n > maxIndex) maxIndex = n;
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
+            int newIndex = maxIndex + 1;
+            myRepo = new File(baseFolder, "repo" + newIndex);
+            if (!myRepo.exists() && !myRepo.mkdirs()) {
+                Logger.error("Impossibile creare la cartella " + myRepo.getName());
+                return;
+            }
+            File marker = new File(myRepo, ".in-use");
+            try {
+                marker.createNewFile();
+            } catch (IOException e) {
+                Logger.error("Impossibile creare file .in-use per " + myRepo.getName());
+                return;
+            }
         }
 
         // 2. Porta casuale
