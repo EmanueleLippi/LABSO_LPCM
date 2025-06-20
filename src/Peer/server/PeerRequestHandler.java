@@ -18,7 +18,6 @@ public class PeerRequestHandler implements Runnable {
     }
 
 
-    //TODO: Valuatre se mettere semafori per file e non per richiesta
     /**
      * Metodo che gestisce le richieste dei peer.
     * Legge la richiesta dal client e, se valida, invia il file richiesto.
@@ -38,6 +37,23 @@ public class PeerRequestHandler implements Runnable {
                 String[] parts = request.split(" ");
                 if (parts.length == 2) {
                     String fileName = parts[1];
+                    /**
+                     * fa due cose principali:
+
+Cerca un oggetto Semaphore associato a fileName nella mappa fileSemaphores.
+Se non esiste, ne crea uno nuovo con 1 permesso e modalità "fair" (FIFO), e lo inserisce nella mappa.
+Dettagli
+fileSemaphores è probabilmente una ConcurrentHashMap<String, Semaphore>.
+computeIfAbsent è un metodo thread-safe: se la chiave (fileName) non esiste, esegue la funzione (f -> new Semaphore(1, true)) per creare il valore.
+Semaphore(1, true) crea un semaforo con un solo permesso e politica "fair": chi prima chiede il permesso, prima lo ottiene.
+Il risultato (Semaphore) viene assegnato a fileSemaphore.
+A cosa serve?
+Questo pattern è usato per sincronizzare l’accesso a una risorsa (qui, probabilmente un file) tra più thread: solo uno alla volta può accedere, gli altri aspettano il loro turno.
+
+Possibili "gotcha"
+Se più thread chiedono contemporaneamente il semaforo per lo stesso file, solo uno lo crea, gli altri ottengono lo stesso oggetto.
+La modalità "fair" può essere più lenta rispetto a quella "non fair", ma garantisce l’ordine di attesa.
+                     */
                     Semaphore fileSemaphore = fileSemaphores.computeIfAbsent(fileName, f -> new Semaphore(1, true));
                     try {
                         fileSemaphore.acquire();
