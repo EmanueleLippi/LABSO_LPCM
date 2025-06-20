@@ -23,51 +23,55 @@ public class Client {
         File baseFolder = new File(System.getProperty("user.dir"), "shared/files");
         baseFolder.mkdirs();
 
-        File[] repoFolders = baseFolder.listFiles(File::isDirectory);
-
         File myRepo = null;
-        if (repoFolders != null) {
-            for (File folder : repoFolders) {
-                File marker = new File(folder, ".in-use");
-                if (!marker.exists()) {
-                    myRepo = folder;
+        // Ripete la selezione finché non riesce a riservare una repo in modo univoco
+        while (myRepo == null) {
+            File[] repoFolders = baseFolder.listFiles(File::isDirectory);
+
+            if (repoFolders != null) {
+                for (File folder : repoFolders) {
+                    File marker = new File(folder, ".in-use");
                     try {
-                        marker.createNewFile(); // segna la repo come in uso
+                       // createNewFile restituisce false se il marker esiste già
+                        if (marker.createNewFile()) {
+                            myRepo = folder;
+                            break;
+                        }
                     } catch (IOException e) {
                         Logger.error("Impossibile creare file .in-use per " + folder.getName());
                         return;
                     }
-                    break;
                 }
             }
-        }
-
-        if (myRepo == null) {
-            // nessuna repo libera o nessuna repo esistente: crea nuova cartella
-            int maxIndex = -1;
-            if (repoFolders != null) {
-                for (File folder : repoFolders) {
-                    String name = folder.getName();
-                    if (name.startsWith("repo")) {
-                        try {
-                            int n = Integer.parseInt(name.substring(4));
-                            if (n > maxIndex) maxIndex = n;
-                        } catch (NumberFormatException ignored) {}
+       if (myRepo == null) {
+                // nessuna repo libera o nessuna repo esistente: crea nuova cartella
+                int maxIndex = -1;
+                if (repoFolders != null) {
+                    for (File folder : repoFolders) {
+                        String name = folder.getName();
+                        if (name.startsWith("repo")) {
+                            try {
+                                int n = Integer.parseInt(name.substring(4));
+                                if (n > maxIndex) maxIndex = n;
+                            } catch (NumberFormatException ignored) {}
+                        }
                     }
                 }
-            }
             int newIndex = maxIndex + 1;
-            myRepo = new File(baseFolder, "repo" + newIndex);
-            if (!myRepo.exists() && !myRepo.mkdirs()) {
-                Logger.error("Impossibile creare la cartella " + myRepo.getName());
-                return;
-            }
-            File marker = new File(myRepo, ".in-use");
-            try {
-                marker.createNewFile();
-            } catch (IOException e) {
-                Logger.error("Impossibile creare file .in-use per " + myRepo.getName());
-                return;
+                File newRepo = new File(baseFolder, "repo" + newIndex);
+                if (!newRepo.exists() && !newRepo.mkdirs()) {
+                    Logger.error("Impossibile creare la cartella " + newRepo.getName());
+                    return;
+                }
+                File marker = new File(newRepo, ".in-use");
+                try {
+                    if (marker.createNewFile()) {
+                        myRepo = newRepo;
+                    }
+                } catch (IOException e) {
+                    Logger.error("Impossibile creare file .in-use per " + newRepo.getName());
+                    return;
+                }
             }
         }
 
@@ -86,7 +90,8 @@ public class Client {
         FileManager.setDownloadsFolderPath(myRepo.getPath());
 
         PeerServer peerServer = new PeerServer(myPort);
-        new Thread(peerServer).start();
+        Thread serverThread = new Thread(peerServer);
+        serverThread.start();
 
         List<String> localFiles = FileManager.getLocalFiles();
         Logger.info("File locali disponibili: " + localFiles);
@@ -177,6 +182,12 @@ public class Client {
              case "quit" -> {
                     masterClient.disconnect(peerName);
                     peerServer.stop();
+                    try {
+                        serverThread.join();
+                    } catch (InterruptedException e) {
+                        Logger.error("Attesa del PeerServer interrotta: " + e.getMessage());
+                        Thread.currentThread().interrupt();
+                    }
                     new File(myRepo, ".in-use").delete();
                     Logger.warn("Peer disconnesso e server terminato.");
                     scanner.close();
