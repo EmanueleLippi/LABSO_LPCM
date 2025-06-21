@@ -74,7 +74,6 @@ class MasterServer {
         }
         // Termina immediatamente tutti i thread del pool
         pool.shutdownNow();
-        System.exit(0);
     }
 
     /** ritorna Stato interno per la CLI */
