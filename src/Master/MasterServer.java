@@ -74,7 +74,6 @@ class MasterServer {
         }
         // Termina immediatamente tutti i thread del pool
         pool.shutdownNow();
-        System.out.println("Master server chiuso.");
         System.exit(0);
     }
 
