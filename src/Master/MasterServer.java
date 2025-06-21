@@ -58,7 +58,7 @@ class MasterServer {
         }
     }
 
-    
+
     /** Arresta il server chiudendo il socket e fermando il pool di thread. */
     public synchronized void shutdown() {
         // Se il server non è in esecuzione non fa nulla
@@ -74,6 +74,8 @@ class MasterServer {
         }
         // Termina immediatamente tutti i thread del pool
         pool.shutdownNow();
+        System.out.println("Master server chiuso.");
+        System.exit(0);
     }
 
     /** ritorna Stato interno per la CLI */
