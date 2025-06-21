@@ -28,7 +28,6 @@ public class PeerServer implements Runnable {
         this.running = true; // Imposta il server come in esecuzione all'inizio
     }
 
-    // TODO: Valutare se tenerlo
      /**
      * Metodo getter per la porta su cui il server sta ascoltando.
      * @return porta del server.
