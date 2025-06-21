@@ -137,5 +137,6 @@ class CliConsole implements Runnable {
         System.out.println("Master disconnesso e server terminato.");
         // Arresta il server
         server.shutdown();
+        System.exit(0);
     }
 }
