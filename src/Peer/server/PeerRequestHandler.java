@@ -5,8 +5,8 @@ import Peer.utils.FileManager;
 import Peer.utils.Logger;
 import java.io.*;
 import java.net.Socket;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 
 public class PeerRequestHandler implements Runnable {
 
@@ -65,12 +65,12 @@ La modalità "fair" può essere più lenta rispetto a quella "non fair", ma gara
                             out.write((content.length + "\n").getBytes());
                             out.write(content);
                             out.flush();
-                            Logger.info("[REQUEST HANDLER] File '" + fileName + "' inviato con " + content.length + " byte.");
+                            Logger.info("File '" + fileName + "' inviato con " + content.length + " byte.");
                         } else {
                             String response = Protocol.DOWNLOAD_DENIED + " " + fileName + "\n";
                             out.write(response.getBytes());
                             out.flush();
-                            Logger.info("[REQUEST HANDLER] File '" + fileName + "' non trovato.");
+                            Logger.info("File '" + fileName + "' non trovato.");
                         }
                     } finally {
                         fileSemaphore.release();
@@ -79,25 +79,25 @@ La modalità "fair" può essere più lenta rispetto a quella "non fair", ma gara
                     String response = Protocol.DOWNLOAD_DENIED + " INVALID_FORMAT\n";
                     out.write(response.getBytes());
                     out.flush();
-                    Logger.warn("[REQUEST HANDLER] Formato richiesta non valido.");
+                    Logger.warn("Formato richiesta non valido.");
                 }
             } else {
                 String response = "ERROR Unsupported or malformed request\n";
                 out.write(response.getBytes());
                 out.flush();
-                Logger.error("[REQUEST HANDLER] Comando sconosciuto.");
+                Logger.error("Comando sconosciuto.");
             }
             } catch (InterruptedException e) {
-            Logger.error("[REQUEST HANDLER] Interrotto durante attesa semaforo: " + e.getMessage());
+            Logger.error("Interrotto durante attesa semaforo: " + e.getMessage());
             Thread.currentThread().interrupt();
 
         } catch (IOException e) {
-            Logger.error("[REQUEST HANDLER] Errore I/O: " + e.getMessage());
+            Logger.error("Errore I/O: " + e.getMessage());
         } finally {
             try {
                 clientSocket.close();
             } catch (IOException e) {
-                Logger.error("[REQUEST HANDLER] Errore chiusura socket: " + e.getMessage());
+                Logger.error("Errore chiusura socket: " + e.getMessage());
             }
         }
     }

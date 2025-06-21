@@ -49,12 +49,12 @@ public class PeerServer implements Runnable {
             serverSocket = new ServerSocket(port);
             serverSocket.setSoTimeout(1000); // timeout di 1 secondo per accept()
 
-            System.out.println("[PEER SERVER] Avviato sulla porta " + port);
+            System.out.println("Avviato sulla porta " + port);
 
             while (running) {
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    Logger.info("[PEER SERVER] Connessione ricevuta da " + clientSocket.getInetAddress());
+                    Logger.info("Connessione ricevuta da " + clientSocket.getInetAddress());
 
                     // Avvia un nuovo thread per gestire la connessione
                     new Thread(new PeerRequestHandler(clientSocket)).start();
@@ -65,13 +65,13 @@ public class PeerServer implements Runnable {
                 }
             }
         } catch (IOException e) {
-            Logger.warn("[PEER SERVER] Errore nella creazione del ServerSocket: " + e.getMessage());
+            Logger.warn("Errore nella creazione del ServerSocket: " + e.getMessage());
             running = false;
         } finally {
             closeServerSocket();
         }
 
-       Logger.warn("[PEER SERVER] Server terminato.");
+       Logger.warn("Server terminato.");
     }
 
     /*
@@ -80,7 +80,7 @@ public class PeerServer implements Runnable {
     public synchronized void stop() {
         running = false;
         closeServerSocket();
-        Logger.warn("[PEER SERVER] Stop richiesto");
+        Logger.warn("Stop richiesto");
     }
 
     /*
@@ -98,9 +98,9 @@ public class PeerServer implements Runnable {
         if (serverSocket != null && !serverSocket.isClosed()) {
             try {
                 serverSocket.close();
-                Logger.warn("[PEER SERVER] ServerSocket chiuso.");
+                Logger.warn("ServerSocket chiuso.");
             } catch (IOException e) {
-                Logger.error("[PEER SERVER] Errore chiusura ServerSocket: " + e.getMessage());
+                Logger.error("Errore chiusura ServerSocket: " + e.getMessage());
             }
         }
     }
