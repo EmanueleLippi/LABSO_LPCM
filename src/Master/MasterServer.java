@@ -8,7 +8,7 @@ import java.util.concurrent.Executors;
 
 /**
  * Gestisce il ServerSocket e il thread-pool per le connessioni dei peer.
- * Metodi start() e shutdown() dichiarati synchronized per evitare race conditions nella fase di avvio/arresto del server.
+ * Metodi start() dichiarati synchronized per evitare race conditions nella fase di avvio/arresto del server.
  */
 class MasterServer {
 
@@ -56,6 +56,24 @@ class MasterServer {
                 System.err.println("Errore server: " + e.getMessage());
             }
         }
+    }
+
+    
+    /** Arresta il server chiudendo il socket e fermando il pool di thread. */
+    public synchronized void shutdown() {
+        // Se il server non è in esecuzione non fa nulla
+        if (!running)
+            return;
+        running = false;
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            System.err.println("Errore chiusura server: " + e.getMessage());
+        }
+        // Termina immediatamente tutti i thread del pool
+        pool.shutdownNow();
     }
 
     /** ritorna Stato interno per la CLI */
