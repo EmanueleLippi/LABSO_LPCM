@@ -13,10 +13,19 @@ import java.util.concurrent.Executors;
 class MasterServer {
 
     private final int port;
+    // oggetto che contiene lo stato globale del sistema
     private final MasterState state = new MasterState();
-    // Crea un thread pool dinamico, che crea nuovi thread su richiesta.
+    /*
+     * Crea un thread pool dinamico, che crea nuovi thread su richiesta
+     * Thread pool è contenitore di thread pre-creati che vengono riutilizzati 
+     * per eseguire task in parallelo, evitando di creare e distruggere thread continuamente.
+     */
     private final ExecutorService pool = Executors.newCachedThreadPool();
     private volatile boolean running = false;
+
+    /* socket TCP è un canale di comunicazione bidirezionale
+     * tra due dispositivi in rete, costruito sopra il protocollo TCP
+     */
     private ServerSocket serverSocket;
 
     MasterServer(int port) {
@@ -37,13 +46,14 @@ class MasterServer {
             System.out.println("Master in ascolto sulla porta " + port);
 
             // Avvio del thread di console (daemon, non blocca l'accept)
+            // se il server chiude, la CliConsole viene interrotta automaticamente.
             Thread cliThread = new Thread(new CliConsole(this));
             // Non impedisce la chiusura dell'app se il main thread finisce
             cliThread.setDaemon(true);
             cliThread.start();
 
             // Ciclo che accetta connessioni finchè è attivo
-            // ogni nuova connessione Socket crea un nuovo PeerHandler
+            // ogni nuova connessione Socket crea un nuovo PeerHandler eseguito in un thread del pool
             // eseguito in pool: ogni peer è gestito in modo concorrente 
             while (running) {
                 Socket clientSocket = serverSocket.accept();

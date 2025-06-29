@@ -123,6 +123,8 @@ class CliConsole implements Runnable {
     private void handleLog() {
         //Ottiene dal server lo stato attuale e la lista di DownloadLogEntry.
         MasterState state = server.getState();
+        // var permette di inserire automaticamente il tipo della variabile in base a cosa gli viene assegnato.
+        // equivale a List<DownloadLogEntry> entries = state.getLogEntries();
         var entries = state.getLogEntries();
         System.out.println("Elenco tentativi di download:");
         for (DownloadLogEntry e : entries) {

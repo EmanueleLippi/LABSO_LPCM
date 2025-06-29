@@ -59,8 +59,10 @@ public class DownloadLogEntry {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
+        // Se o non è un oggetto della classe DownloadLogEntry, allora non può essere uguale
         if (!(o instanceof DownloadLogEntry)) return false;
         DownloadLogEntry other = (DownloadLogEntry) o;
+        // Se tutti questi campi coincidono, allora i due oggetti rappresentano lo stesso evento di download
         return success == other.success
                 && timestamp.equals(other.timestamp)
                 && resource.equals(other.resource)
