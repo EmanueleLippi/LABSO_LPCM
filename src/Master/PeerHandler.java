@@ -104,15 +104,17 @@ class PeerHandler implements Runnable {
             sendResponse(Protocol.ERROR + " Mancano argomenti per il comando REGISTER");
             return;
         }
+        // ID del peer che si sta registrando
         String peerId = tokens[1];
         int peerPort;
-        // Parsing risorse
+        // Parse la porta su cui il peer è in ascolto
         try {
             peerPort = Integer.parseInt(tokens[2]);
         } catch (NumberFormatException ex) {
             sendResponse(Protocol.ERROR + " PeerPort errata per REGISTER");
             return;
         }
+        // Parse il numero di risorse n che il peer dichiara di voler registrare.
         int n;
         try {
             n = Integer.parseInt(tokens[3]);
@@ -120,12 +122,12 @@ class PeerHandler implements Runnable {
             sendResponse(Protocol.ERROR + " numRisorse errato per REGISTER");
             return;
         }
-        // Verifica che il numero di risorse corrisponda a quanto dichiarato, in caso positivo crea il set
+        // Verifica che ci siano esattamente n risorse dopo i primi 4 token.
         if (tokens.length != 4 + n) {
             sendResponse(Protocol.ERROR + " Incoerenza di numero di risorse per REGISTER");
             return;
         }
-        
+        // Costruisce il set (no duplicati) di risorse che il peer sta registrando
         Set<String> resources = new HashSet<>();
         for (int i = 0; i < n; i++) {
             resources.add(tokens[4 + i]);

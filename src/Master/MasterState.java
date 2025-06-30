@@ -39,16 +39,20 @@ class MasterState {
      */
     public void registerPeer(String peerId, InetAddress address, int port, Set<String> resources) {
         try {
-            // Entra in sezione critica
+            // Entra in sezione critica, solop un thread alla volta
             semaphore.acquire();
             // Crea e salva l'oggetto PeerInfo
             PeerInfo info = new PeerInfo(peerId, address, port, resources, Instant.now());
             peers.put(peerId, info);
 
-            // Aggiorna la mappa risorsa → peer in modo sicuro:
+            // Aggiorna la mappa risorsa → peer in modo sicuro.
+            // Acquisisce un lock di scrittura sulla mappa
             tableLock.writeLock().lock();
             try {
                 for (String r : resources) {
+                    // Se la risorsa r è già presente nella mappa, prende il set associato
+                    // Altrimenti, crea e associa un nuovo set vuoto (thread-safe) alla risorsa
+                    // In entrambi i casi, aggiunge peerId al set dei peer che possiedono r
                     resourceToPeers.computeIfAbsent(r, k -> ConcurrentHashMap.newKeySet()).add(peerId);
                 }
             } finally {
@@ -77,10 +81,13 @@ class MasterState {
             // lock per aggiornare la mappa risorsa → peer in modo sicuro
             tableLock.writeLock().lock();
             try {
+                // ciclo sulle vecchie risorse del peer
                 for (String rOld : oldInfo.getResources()) {
+                    // Recupera il set di peer che possiedono quella risorsa.
                     Set<String> set = resourceToPeers.get(rOld);
                     if (set != null) {
                         set.remove(peerId);
+                        // Se il set diventa vuoto, rimuove la risorsa dalla mappa
                         if (set.isEmpty()) {
                             resourceToPeers.remove(rOld);
                         }
@@ -107,6 +114,7 @@ class MasterState {
         try {
             // Entra in sezione critica
             semaphore.acquire();
+            // Rimuove il peerId dalla mappa dei peer
             PeerInfo info = peers.remove(peerId);
             if (info == null) return;
             // Rimuove il peerId da tutte le risorse che possedeva
@@ -114,6 +122,7 @@ class MasterState {
             tableLock.writeLock().lock();
             try {
                 for (String r : info.getResources()) {
+                    // per ogni risorsa recupera il set di peer che la offrono
                     Set<String> set = resourceToPeers.get(r);
                     if (set != null) {
                         set.remove(peerId);
@@ -225,7 +234,7 @@ class MasterState {
 
     // Aggiunge un log nella coda.
     public void addDownloadLog(DownloadLogEntry entry) {
-    downloadLog.add(entry);
+        downloadLog.add(entry);
     }
 
     // Restituisce una copia immutabile dei log

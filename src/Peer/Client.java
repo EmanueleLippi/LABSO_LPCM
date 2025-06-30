@@ -33,6 +33,7 @@ public class Client {
                     File marker = new File(folder, ".in-use");
                     try {
                        // createNewFile restituisce false se il marker esiste già
+                       // metodo atomico per evitare conflitti tra più peer, si basa sulle primitive del FileSystem, atomiche anche tra processi diversi
                         if (marker.createNewFile()) {
                             myRepo = folder;
                             break;
